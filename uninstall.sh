@@ -21,7 +21,6 @@ fi
 
 # 1. Remove module files
 rm -f /usr/local/cwpsrv/htdocs/resources/admin/modules/powerdns-manager.php
-rm -f /usr/local/cwpsrv/htdocs/resources/admin/modules/powerdns.php
 rm -f /usr/local/cwpsrv/htdocs/resources/admin/include/powerdns_menu.php
 
 # 2. Remove menu injection from 3rdparty.php

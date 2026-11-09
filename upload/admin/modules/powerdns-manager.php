@@ -2767,9 +2767,8 @@ if ($db_stat) {
                 <div style="display:flex; align-items:center; gap:10px;">
                     <h4 style="margin:0; font-size:16px;">
                         <i class="icon16 icomoon-icon-database" style="color:#2f80ed; margin-right:5px;"></i>
-                        <b>DNS Database Backup &amp; Restore</b>
+                        <b>DNS Database Backup &amp; Restore</b> (<code><?php echo ($pdns_backend === 'pgsql') ? 'PostgreSQL' : 'MySQL'; ?>:<?php echo htmlspecialchars($db_name ?? 'powerdns'); ?></code>)
                     </h4>
-                    <code style="font-size:13px; padding:3px 8px;"><?php echo ($pdns_backend === 'pgsql') ? 'PostgreSQL' : 'MySQL'; ?>: <?php echo htmlspecialchars($db_name ?? 'powerdns'); ?></code>
                 </div>
             </div>
 

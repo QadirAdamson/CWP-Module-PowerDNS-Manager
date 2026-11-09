@@ -1324,7 +1324,7 @@ function get_q_sort_url($col) {
     global $q_sort, $q_order, $q_filter, $q_type_filter, $per_page;
     $new_order = ($q_sort === $col && $q_order === 'asc') ? 'desc' : 'asc';
     $params = [
-        'module'   => 'powerdns',
+        'module'   => 'powerdns-manager',
         'tab'      => 'queries',
         'q_sort'   => $col,
         'q_order'  => $new_order,
@@ -1344,7 +1344,7 @@ function get_all_sort_url($col) {
     global $all_rec_sort, $all_rec_order, $all_rec_filter, $all_type_filter, $per_page;
     $new_order = ($all_rec_sort === $col && $all_rec_order === 'asc') ? 'desc' : 'asc';
     $params = [
-        'module' => 'powerdns',
+        'module' => 'powerdns-manager',
         'tab' => 'records',
         'all_sort' => $col,
         'all_order' => $new_order,
@@ -2379,7 +2379,7 @@ function changePerPage(perPageVal) {
 
 function triggerFilter(tabName, paramName, filterVal, manageZone) {
     var params = new URLSearchParams(window.location.search);
-    params.set('module', 'powerdns');
+    params.set('module', 'powerdns-manager');
     params.set('tab', tabName);
     params.set('per_page', '<?php echo intval($per_page); ?>');
     if (manageZone) {

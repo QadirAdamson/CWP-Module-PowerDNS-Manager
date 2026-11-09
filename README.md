@@ -19,7 +19,7 @@ A native PowerDNS Authoritative Server management module designed for [Control W
 Run on your CWP server as `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/install.sh | bash
 ```
 
 Access in CWP Admin Panel: 👉 **DNS Functions → PowerDNS Manager**
@@ -29,7 +29,7 @@ Access in CWP Admin Panel: 👉 **DNS Functions → PowerDNS Manager**
 ## 🗑️ Uninstallation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/uninstall.sh | bash
 ```
 
 ---

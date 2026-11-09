@@ -102,7 +102,7 @@ if [ -f "$SCRIPT_DIR/sql/schema.mysql.sql" ]; then
     mysql "$DB_NAME" < "$SCRIPT_DIR/sql/schema.mysql.sql"
 else
     # Download schema directly if standalone curl-to-bash run
-    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
+    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
 fi
 
 # 4. Configure /etc/pdns/pdns.conf
@@ -156,8 +156,8 @@ if [ -f "$SCRIPT_DIR/upload/admin/modules/powerdns-manager.php" ]; then
     cp -f "$SCRIPT_DIR/upload/admin/modules/powerdns-manager.php" "$CWP_DIR/modules/powerdns-manager.php"
     cp -f "$SCRIPT_DIR/upload/admin/include/powerdns_menu.php" "$CWP_DIR/include/powerdns_menu.php"
 else
-    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/upload/admin/modules/powerdns-manager.php -o "$CWP_DIR/modules/powerdns-manager.php"
-    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/upload/admin/include/powerdns_menu.php -o "$CWP_DIR/include/powerdns_menu.php"
+    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/upload/admin/modules/powerdns-manager.php -o "$CWP_DIR/modules/powerdns-manager.php"
+    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/upload/admin/include/powerdns_menu.php -o "$CWP_DIR/include/powerdns_menu.php"
 fi
 
 chmod 644 "$CWP_DIR/modules/powerdns-manager.php"

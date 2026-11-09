@@ -1864,17 +1864,14 @@ ksort($supported_types);
                     <i class="icon16 icomoon-icon-lightning" style="color:#2f80ed; margin-right:6px;"></i> PowerDNS
                 </h3>
                 <?php if ($is_active): ?>
-                    <span class="badge" style="background:#28a745; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center; margin-right:8px;">
+                    <span class="badge" style="background:#28a745; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
                         <i class="icon16 icomoon-icon-checkmark-circle" style="color:#ffffff; margin-right:5px;"></i> Service Running
                     </span>
                 <?php else: ?>
-                    <span class="badge" style="background:#dc3545; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center; margin-right:8px;">
+                    <span class="badge" style="background:#dc3545; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
                         <i class="icon16 icomoon-icon-cancel-circle" style="color:#ffffff; margin-right:5px;"></i> Service Stopped
                     </span>
                 <?php endif; ?>
-                <span class="badge" style="background:#0066cc; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
-                    <i class="icon16 icomoon-icon-database" style="color:#ffffff; margin-right:5px;"></i> <?php echo ($pdns_backend === 'pgsql') ? 'PostgreSQL' : 'MariaDB / MySQL'; ?>
-                </span>
             </div>
             <div>
                 <form method="POST" style="margin:0; display:inline-block;">
@@ -2497,11 +2494,14 @@ if ($db_stat) {
     <div class="col-md-12">
         <div class="pdns-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-                <div style="display:flex; align-items:center;">
+                <div style="display:flex; align-items:center; gap:10px;">
                     <h4 style="margin:0; font-size:16px;">
                         <i class="icon16 icomoon-icon-database" style="color:#2f80ed; margin-right:5px;"></i>
                         <b>DNS Database Backup &amp; Restore</b>
                     </h4>
+                    <span class="badge" style="background:#0066cc; color:#ffffff; font-size:12px; font-weight:bold; padding:4px 10px; border-radius:4px; display:inline-flex; align-items:center;">
+                        <i class="icon16 icomoon-icon-database" style="color:#ffffff; margin-right:5px;"></i> <?php echo ($pdns_backend === 'pgsql') ? 'PostgreSQL' : 'MySQL'; ?>: <?php echo htmlspecialchars($db_name ?? 'powerdns'); ?>
+                    </span>
                 </div>
             </div>
 

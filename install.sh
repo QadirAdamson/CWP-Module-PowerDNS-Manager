@@ -56,42 +56,31 @@ fi
 PDNS_BACKEND="mysql"
 if [ "$HAS_POSTGRES" = true ]; then
     DEFAULT_CHOICE="1"
-    DEFAULT_LABEL="MariaDB / MySQL"
-    if [ -f /etc/pdns/pdns.conf ] && grep -E '^[[:space:]]*launch=' /etc/pdns/pdns.conf | grep -q "gpgsql"; then
-        DEFAULT_CHOICE="2"
-        DEFAULT_LABEL="PostgreSQL"
-    fi
+    DEFAULT_LABEL="MySQL"
 
     echo -e "\n${YELLOW}PostgreSQL detected on this system.${NC}"
     echo -e "Select database backend for PowerDNS:"
-    echo -e "  [1] MariaDB / MySQL"
+    echo -e "  [1] MySQL (Default)"
     echo -e "  [2] PostgreSQL"
     echo -e ""
     DB_CHOICE=""
     if [ -t 0 ] || [ -e /dev/tty ]; then
-        if read -t 10 -p "Select database backend [1-2] (Default: ${DEFAULT_CHOICE} -> ${DEFAULT_LABEL} in 10s): " DB_CHOICE < /dev/tty; then
+        if read -t 10 -p "Select database backend [1-2] (Default: 1 -> MySQL in 10s): " DB_CHOICE < /dev/tty; then
             echo ""
         else
-            echo -e "\n${BLUE}Timeout reached. Selecting default (${DEFAULT_CHOICE} -> ${DEFAULT_LABEL}).${NC}"
-            DB_CHOICE="${DEFAULT_CHOICE}"
+            echo -e "\n${BLUE}Timeout reached. Selecting default (1 -> MySQL).${NC}"
+            DB_CHOICE="1"
         fi
     else
-        DB_CHOICE="${DEFAULT_CHOICE}"
+        DB_CHOICE="1"
     fi
 
     case "$DB_CHOICE" in
         2)
             PDNS_BACKEND="pgsql"
             ;;
-        1)
+        1|*)
             PDNS_BACKEND="mysql"
-            ;;
-        *)
-            if [ "$DEFAULT_CHOICE" = "2" ]; then
-                PDNS_BACKEND="pgsql"
-            else
-                PDNS_BACKEND="mysql"
-            fi
             ;;
     esac
 fi
@@ -179,7 +168,7 @@ if [ "$PDNS_BACKEND" = "pgsql" ]; then
     su - postgres -c "psql -d ${DB_NAME} -c \"GRANT ALL ON SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};\"" >/dev/null 2>&1 || true
     echo -e "${GREEN}[OK] PostgreSQL database and schema configured successfully.${NC}"
 else
-    echo -e "\n${YELLOW}[3/8] Configuring PowerDNS database in MariaDB/MySQL...${NC}"
+    echo -e "\n${YELLOW}[3/8] Configuring PowerDNS database in MySQL...${NC}"
 
     EXISTING_PASS=""
     EXISTING_API=""
@@ -214,7 +203,7 @@ else
     else
         curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
     fi
-    echo -e "${GREEN}[OK] MariaDB/MySQL database and schema configured successfully.${NC}"
+    echo -e "${GREEN}[OK] MySQL database and schema configured successfully.${NC}"
 fi
 
 # 4. Configure /etc/pdns/pdns.conf

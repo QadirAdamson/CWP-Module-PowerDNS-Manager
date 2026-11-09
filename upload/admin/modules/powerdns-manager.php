@@ -361,6 +361,199 @@ function parse_bind_zone_file($filepath, $origin_domain) {
 }
 }
 
+if (!function_exists('generate_zone_file_content')) {
+function generate_zone_file_content($db, $domain_id, $domain_name) {
+    $clean_dom = rtrim($domain_name, '.');
+    $out = "\$ORIGIN {$clean_dom}.\n";
+
+    // 1. Fetch SOA
+    $res_soa = $db->query("SELECT name, type, content, ttl FROM records WHERE domain_id = {$domain_id} AND type = 'SOA' LIMIT 1");
+    $default_ttl = 3600;
+    if ($res_soa && $soa = $res_soa->fetch_assoc()) {
+        $default_ttl = intval($soa['ttl'] ?: 3600);
+        $out .= "\$TTL {$default_ttl}\n";
+        $out .= "{$clean_dom}.\t{$default_ttl}\tIN\tSOA\t{$soa['content']}\n";
+    } else {
+        $out .= "\$TTL 3600\n";
+    }
+
+    // 2. Fetch all other records
+    $res_r = $db->query("SELECT name, type, content, ttl, prio, disabled FROM records WHERE domain_id = {$domain_id} AND type != 'SOA' ORDER BY type, name, id");
+    if ($res_r) {
+        while ($r = $res_r->fetch_assoc()) {
+            $r_name = rtrim($r['name'], '.') . '.';
+            $r_type = strtoupper($r['type']);
+            $r_ttl = intval($r['ttl'] ?: $default_ttl);
+            $r_prio = (isset($r['prio']) && $r['prio'] !== null && $r['prio'] !== '') ? intval($r['prio']) : null;
+            $r_cnt = trim($r['content']);
+            $comment_prefix = !empty($r['disabled']) ? '; [DISABLED] ' : '';
+
+            if ($r_type === 'MX' || $r_type === 'SRV') {
+                if ($r_prio !== null && !preg_match('/^\d+\s+/', $r_cnt)) {
+                    $val = "{$r_prio}\t{$r_cnt}";
+                } else {
+                    $val = $r_cnt;
+                }
+            } elseif ($r_type === 'TXT') {
+                if ($r_cnt === '' || $r_cnt[0] !== '"') {
+                    $val = '"' . str_replace('"', '\"', $r_cnt) . '"';
+                } else {
+                    $val = $r_cnt;
+                }
+            } else {
+                $val = $r_cnt;
+            }
+
+            $out .= "{$comment_prefix}{$r_name}\t{$r_ttl}\tIN\t{$r_type}\t{$val}\n";
+        }
+    }
+    return $out;
+}
+}
+
+if (!function_exists('generate_all_zones_file')) {
+function generate_all_zones_file($db) {
+    $res = $db->query("SELECT id, name, type FROM domains ORDER BY name");
+    if (!$res) return "";
+    $out = "; ==============================================================================\n";
+    $out .= "; PowerDNS Multi-Zone Master ZoneFile Export (RFC 1035)\n";
+    $out .= "; Generated: " . date('Y-m-d H:i:s') . "\n";
+    $out .= "; Database Engine Agnostic - Works across MySQL, PostgreSQL & BIND 9\n";
+    $out .= "; ==============================================================================\n\n";
+
+    while ($row = $res->fetch_assoc()) {
+        $dom_id = intval($row['id']);
+        $dom_name = rtrim($row['name'], '.');
+        $out .= "; ------------------------------------------------------------------------------\n";
+        $out .= "; ZONE: {$dom_name} ({$row['type']})\n";
+        $out .= "; ------------------------------------------------------------------------------\n";
+        $out .= generate_zone_file_content($db, $dom_id, $dom_name);
+        $out .= "\n";
+    }
+    return $out;
+}
+}
+
+if (!function_exists('import_zonefile_content')) {
+function import_zonefile_content($db, $raw_content, $pdns_backend) {
+    $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", $raw_content));
+    $zone_blocks = [];
+    $curr_zone = '';
+    $curr_lines = [];
+
+    foreach ($lines as $line) {
+        if (preg_match('/^\s*\$ORIGIN\s+([^\s;]+)/i', $line, $om)) {
+            if (!empty($curr_zone) && !empty($curr_lines)) {
+                $zone_blocks[$curr_zone] = implode("\n", $curr_lines);
+            }
+            $curr_zone = trim($om[1], '.;" ');
+            $curr_lines = [$line];
+        } else {
+            if (empty($curr_zone) && preg_match('/^\s*([^\s;]+)\s+(?:\d+\s+)?(?:IN\s+)?SOA/i', $line, $sm)) {
+                $curr_zone = trim($sm[1], '.;" ');
+            }
+            $curr_lines[] = $line;
+        }
+    }
+    if (!empty($curr_zone) && !empty($curr_lines)) {
+        $zone_blocks[$curr_zone] = implode("\n", $curr_lines);
+    }
+    if (empty($zone_blocks) && !empty($curr_lines)) {
+        $zone_blocks['default'] = implode("\n", $curr_lines);
+    }
+
+    $imported_zones = 0;
+    $imported_records = 0;
+
+    foreach ($zone_blocks as $dom_name => $zone_text) {
+        $tmp_f = tempnam('/tmp', 'pdns_zimp_');
+        file_put_contents($tmp_f, $zone_text);
+        $parsed = parse_bind_zone_file($tmp_f, $dom_name);
+        @unlink($tmp_f);
+
+        if (!$parsed || empty($parsed['domain'])) continue;
+        $clean_dom = rtrim($parsed['domain'], '.');
+        $clean_esc = $db->real_escape_string($clean_dom);
+
+        // Check if domain exists, else create
+        $qz = $db->query("SELECT id FROM domains WHERE name = '{$clean_esc}' LIMIT 1");
+        $domain_id = 0;
+        if ($qz && $zrow = $qz->fetch_assoc()) {
+            $domain_id = intval($zrow['id']);
+        } else {
+            $db->query("INSERT INTO domains (name, type) VALUES ('{$clean_esc}', 'NATIVE')");
+            $domain_id = $db->insert_id;
+            if (!$domain_id) {
+                $qz2 = $db->query("SELECT id FROM domains WHERE name = '{$clean_esc}' LIMIT 1");
+                if ($qz2 && $zrow2 = $qz2->fetch_assoc()) {
+                    $domain_id = intval($zrow2['id']);
+                }
+            }
+            $imported_zones++;
+        }
+
+        if (!$domain_id) continue;
+
+        // Fetch existing records for this domain
+        $existing_set = [];
+        $q_exist = $db->query("SELECT name, type, content FROM records WHERE domain_id = {$domain_id}");
+        if ($q_exist) {
+            while ($er = $q_exist->fetch_assoc()) {
+                $key = strtolower(rtrim($er['name'], '.')) . '|' . strtoupper($er['type']) . '|' . trim($er['content'], '."');
+                $existing_set[$key] = true;
+            }
+        }
+
+        $dis_val = ($pdns_backend === 'pgsql') ? 'FALSE' : '0';
+        $auth_val = ($pdns_backend === 'pgsql') ? 'TRUE' : '1';
+
+        // Process SOA
+        if (!empty($parsed['soa'])) {
+            $soa_name_esc = $db->real_escape_string(rtrim($parsed['soa']['name'], '.'));
+            $soa_ttl = intval($parsed['soa']['ttl']);
+            $soa_cnt_esc = $db->real_escape_string($parsed['soa']['content']);
+
+            $q_soa_check = $db->query("SELECT id, content FROM records WHERE domain_id = {$domain_id} AND type = 'SOA' LIMIT 1");
+            if ($q_soa_check && $row_soa = $q_soa_check->fetch_assoc()) {
+                $cur_parts = preg_split('/\s+/', trim($row_soa['content']));
+                if (count($cur_parts) < 7 || stripos($row_soa['content'], 'a.misconfigured.dns.server.invalid') !== false) {
+                    $db->query("UPDATE records SET content = '{$soa_cnt_esc}', ttl = {$soa_ttl} WHERE id = {$row_soa['id']}");
+                }
+            } else {
+                $db->query("INSERT INTO records (domain_id, name, type, content, ttl, prio, disabled, auth)
+                            VALUES ({$domain_id}, '{$soa_name_esc}', 'SOA', '{$soa_cnt_esc}', {$soa_ttl}, NULL, {$dis_val}, {$auth_val})");
+                $imported_records++;
+            }
+        }
+
+        // Process records
+        foreach ($parsed['records'] as $r) {
+            $check_key = strtolower(rtrim($r['name'], '.')) . '|' . strtoupper($r['type']) . '|' . trim($r['content'], '."');
+            if (isset($existing_set[$check_key])) continue;
+
+            $r_name_esc = $db->real_escape_string(rtrim($r['name'], '.'));
+            $r_type_esc = $db->real_escape_string($r['type']);
+            $r_ttl = intval($r['ttl']);
+            $r_cnt_esc = $db->real_escape_string($r['content']);
+            $r_prio_val = (isset($r['prio']) && is_numeric($r['prio'])) ? intval($r['prio']) : "NULL";
+
+            $db->query("INSERT INTO records (domain_id, name, type, content, ttl, prio, disabled, auth)
+                        VALUES ({$domain_id}, '{$r_name_esc}', '{$r_type_esc}', '{$r_cnt_esc}', {$r_ttl}, {$r_prio_val}, {$dis_val}, {$auth_val})");
+            $imported_records++;
+            $existing_set[$check_key] = true;
+        }
+    }
+
+    if ($pdns_backend === 'pgsql') {
+        @$db->query("SELECT setval('domains_id_seq', COALESCE((SELECT MAX(id) FROM domains), 1))");
+        @$db->query("SELECT setval('records_id_seq', COALESCE((SELECT MAX(id) FROM records), 1))");
+    }
+
+    shell_exec("pdns_control purge >/dev/null 2>&1");
+    return ['zones' => $imported_zones, 'records' => $imported_records];
+}
+}
+
 function call_pdns_api($endpoint, $method = 'GET', $data = null) {
     global $api_url, $api_key;
     $ch = curl_init($api_url . $endpoint);
@@ -530,6 +723,82 @@ if (isset($_POST['import_db_sql'])) {
     } else {
         $msg_type = 'danger';
         $message = "Please select a valid .sql backup file to import.";
+    }
+}
+
+// Handle Single Zone RFC 1035 ZoneFile Export (.zone download)
+if (isset($_GET['export_single_zone']) && !empty($_GET['export_single_zone'])) {
+    $target_dom = trim($_GET['export_single_zone']);
+    $db = get_pdns_db();
+    if ($db) {
+        $clean_esc = $db->real_escape_string(rtrim($target_dom, '.'));
+        $qz = $db->query("SELECT id, name FROM domains WHERE name = '{$clean_esc}' LIMIT 1");
+        if ($qz && $row = $qz->fetch_assoc()) {
+            $dom_id = intval($row['id']);
+            $dom_name = rtrim($row['name'], '.');
+            $content = "; ==============================================================================\n";
+            $content .= "; ZoneFile Export: {$dom_name} (RFC 1035 Format)\n";
+            $content .= "; Generated from PowerDNS on " . date('Y-m-d H:i:s') . "\n";
+            $content .= "; ==============================================================================\n\n";
+            $content .= generate_zone_file_content($db, $dom_id, $dom_name);
+            $db->close();
+
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $dom_name . '.zone"');
+            header('Content-Length: ' . strlen($content));
+            echo $content;
+            exit;
+        }
+        $db->close();
+    }
+}
+
+// Handle Multi-Zone RFC 1035 ZoneFile Export
+$exported_zonefile_data = null;
+if (isset($_POST['export_all_zonefile'])) {
+    $db = get_pdns_db();
+    if ($db) {
+        $content = generate_all_zones_file($db);
+        $db->close();
+        if (!empty($content)) {
+            $exported_zonefile_data = [
+                'filename' => 'powerdns_zones_backup_' . date('Ymd_His') . '.zone',
+                'content'  => base64_encode($content)
+            ];
+        } else {
+            $msg_type = 'warning';
+            $message = "No DNS zones found in database to export.";
+        }
+    } else {
+        $msg_type = 'danger';
+        $message = "Unable to connect to database for ZoneFile export.";
+    }
+}
+
+// Handle RFC 1035 ZoneFile Import (.zone / .db / .txt)
+if (isset($_POST['import_zonefile'])) {
+    $zf = $_FILES['zone_file'] ?? null;
+    if ($zf && $zf['error'] === UPLOAD_ERR_OK && is_uploaded_file($zf['tmp_name'])) {
+        $raw_zf_content = file_get_contents($zf['tmp_name']);
+        $db = get_pdns_db();
+        if ($db) {
+            $stats = import_zonefile_content($db, $raw_zf_content, $pdns_backend);
+            $db->close();
+            $message = "ZoneFile (<b>" . htmlspecialchars($zf['name']) . "</b>) imported successfully: <b>" . intval($stats['zones']) . "</b> zone(s) created, <b>" . intval($stats['records']) . "</b> record(s) added/updated.";
+            if (isset($_POST['restart_after_import'])) {
+                shell_exec('systemctl restart pdns 2>&1');
+                usleep(400000);
+                if (trim(shell_exec('systemctl is-active pdns 2>/dev/null')) === 'active') {
+                    $message .= " PowerDNS service has been restarted.";
+                }
+            }
+        } else {
+            $msg_type = 'danger';
+            $message = "Unable to connect to database for ZoneFile import.";
+        }
+    } else {
+        $msg_type = 'danger';
+        $message = "Please select a valid .zone, .db, or .txt file to import.";
     }
 }
 
@@ -2450,7 +2719,7 @@ if ($db_stat) {
                         </th>
                         <th style="width:55px;"><a href="<?php echo get_sort_url('id'); ?>" style="color:#495057; text-decoration:none; display:flex; align-items:center; gap:3px;">ID <?php echo get_sort_indicator('id'); ?></a></th>
                         <th><a href="<?php echo get_sort_url('name'); ?>" style="color:#495057; text-decoration:none; display:flex; align-items:center;">Domain Name <?php echo get_sort_indicator('name'); ?></a></th>
-                        <th style="width:100px;">Actions</th>
+                        <th style="width:120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2469,6 +2738,7 @@ if ($db_stat) {
                                 <td>
                                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                                         <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" class="btn-action-edit" title="Manage Records"><i class="icon16 icomoon-icon-pencil"></i></a>
+                                        <a href="index.php?module=powerdns-manager&tab=zones&export_single_zone=<?php echo urlencode($z['name']); ?>" class="btn-action-edit" style="background:#17a2b8 !important;" title="Export ZoneFile (.zone)"><i class="icon16 icomoon-icon-download"></i></a>
                                         <a href="index.php?module=powerdns-manager&tab=zones&delete_zone=<?php echo urlencode($z['id']); ?>" onclick="return confirm('Are you sure you want to delete this zone and all its records?');" class="btn-action-delete" title="Delete Zone"><i class="icon16 icomoon-icon-remove"></i></a>
                                     </div>
                                 </td>
@@ -2505,17 +2775,31 @@ if ($db_stat) {
                 </div>
             </div>
 
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <!-- SQL Backup / Restore -->
                 <form method="POST" id="form-export-db-sql" style="margin:0;">
                     <input type="hidden" name="export_db_sql" value="1">
-                    <button type="submit" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                        <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export (Download) SQL
+                    <button type="submit" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export SQL
                     </button>
                 </form>
-                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                    <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import (Upload) SQL
+                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import SQL
                 </button>
-                <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Scan /var/named and sync missing zones and records without overwriting">
+
+                <!-- Universal ZoneFile RFC 1035 Backup / Restore -->
+                <form method="POST" id="form-export-all-zonefile" style="margin:0;">
+                    <input type="hidden" name="export_all_zonefile" value="1">
+                    <button type="submit" class="btn btn-info" style="background:#17a2b8 !important; background-color:#17a2b8 !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Export all DNS zones as standard RFC 1035 ZoneFile (Works across MySQL &amp; PostgreSQL)">
+                        <i class="icon16 icomoon-icon-file" style="color:#fff;"></i> Export ZoneFile (.zone)
+                    </button>
+                </form>
+                <button type="button" onclick="document.getElementById('import_zonefile_input').click();" class="btn btn-info" style="background:#17a2b8 !important; background-color:#17a2b8 !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Import standard RFC 1035 ZoneFile (.zone / .db) into PowerDNS (Works across MySQL &amp; PostgreSQL)">
+                    <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import ZoneFile (.zone)
+                </button>
+
+                <!-- BIND Sync -->
+                <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Scan /var/named and sync missing zones and records without overwriting">
                     <i class="icon16 icomoon-icon-loop" style="color:#fff;"></i> BIND Sync
                 </button>
             </div>
@@ -2525,6 +2809,13 @@ if ($db_stat) {
                 <input type="hidden" name="import_db_sql" value="1">
                 <input type="hidden" name="restart_after_import" id="import_sql_restart_val" value="1">
                 <input type="file" name="sql_file" id="import_sql_file_input" accept=".sql" onchange="handleSqlImport(this)">
+            </form>
+
+            <!-- Hidden Form for ZoneFile Import -->
+            <form method="POST" id="form-import-zonefile" enctype="multipart/form-data" style="display:none;">
+                <input type="hidden" name="import_zonefile" value="1">
+                <input type="hidden" name="restart_after_import" id="import_zonefile_restart_val" value="1">
+                <input type="file" name="zone_file" id="import_zonefile_input" accept=".zone,.db,.txt" onchange="handleZonefileImport(this)">
             </form>
         </div>
     </div>
@@ -2658,6 +2949,25 @@ function handleSqlImport(input) {
     document.getElementById('form-import-db-sql').submit();
 }
 
+function handleZonefileImport(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (['zone', 'db', 'txt'].indexOf(ext) === -1) {
+        alert("Please select a valid RFC 1035 ZoneFile (.zone, .db, or .txt).");
+        input.value = '';
+        return;
+    }
+
+    var doRestart = confirm('Import ZoneFile "' + file.name + '" into PowerDNS?\n\nThis will parse RFC 1035 zone and records and import them into the active database. Existing records will not be overwritten.\n\nRestart PowerDNS service after import?');
+    var restartInput = document.getElementById('import_zonefile_restart_val');
+    if (restartInput) {
+        restartInput.value = doRestart ? '1' : '0';
+    }
+
+    document.getElementById('form-import-zonefile').submit();
+}
+
 <?php if (!empty($exported_sql_data)): ?>
 $(document).ready(function() {
     try {
@@ -2673,6 +2983,25 @@ $(document).ready(function() {
         URL.revokeObjectURL(url);
     } catch(e) {
         console.error('SQL export download error: ', e);
+    }
+});
+<?php endif; ?>
+
+<?php if (!empty($exported_zonefile_data)): ?>
+$(document).ready(function() {
+    try {
+        var zoneContent = atob("<?php echo $exported_zonefile_data['content']; ?>");
+        var blob = new Blob([zoneContent], { type: 'text/plain;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = "<?php echo htmlspecialchars($exported_zonefile_data['filename']); ?>";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch(e) {
+        console.error('ZoneFile export download error: ', e);
     }
 });
 <?php endif; ?>

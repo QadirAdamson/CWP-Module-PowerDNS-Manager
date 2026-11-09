@@ -1471,6 +1471,7 @@ ksort($supported_types);
     color: #495057;
     border: 1px solid #e4e7ed;
     vertical-align: middle;
+    text-align: left !important;
 }
 .pdns-table tbody tr {
     transition: background 0.1s ease;
@@ -1486,6 +1487,7 @@ ksort($supported_types);
     border: 1px solid #e4e7ed;
     color: #333;
     vertical-align: middle;
+    text-align: left !important;
 }
 .btn-action-edit {
     display: inline-flex;
@@ -1905,7 +1907,7 @@ if ($db_stat) {
                             <th style="width:110px;"><a href="<?php echo get_q_sort_url('response'); ?>" style="color:#495057; text-decoration:none; display:flex;">Response <?php echo get_q_sort_indicator('response'); ?></a></th>
                             <th style="width:150px;"><a href="<?php echo get_q_sort_url('size'); ?>" style="color:#495057; text-decoration:none; display:flex;">Other <?php echo get_q_sort_indicator('size'); ?></a></th>
                             <th style="width:160px;"><a href="<?php echo get_q_sort_url('time'); ?>" style="color:#495057; text-decoration:none; display:flex;">Time <?php echo get_q_sort_indicator('time'); ?></a></th>
-                            <th style="width:70px; text-align:center;">Action</th>
+                            <th style="width:70px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1953,7 +1955,7 @@ if ($db_stat) {
                                     <span style="color:#555; font-size:11.5px;"><?php echo htmlspecialchars($other_text); ?></span>
                                 </td>
                                 <td style="color:#555; font-size:12px;"><?php echo htmlspecialchars($q_item['time']); ?></td>
-                                <td style="text-align:center;">
+                                <td>
                                     <a href="index.php?module=powerdns-manager&tab=queries&del_query_id=<?php echo $q_item['id']; ?>&per_page=<?php echo intval($per_page); ?>" onclick="return confirm('Delete this query log entry?');" class="btn-action-delete" title="Delete Log"><i class="icon16 icomoon-icon-remove"></i></a>
                                 </td>
                             </tr>
@@ -2210,7 +2212,7 @@ if ($db_stat) {
                     </div>
                 </div>
                 <div style="text-align:right;">
-                    <button type="submit" name="add_zone" class="btn btn-success" style="background:#28a745; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                    <button type="submit" name="add_zone" class="btn btn-primary" style="background:#2f80ed; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-weight:bold;">
                         <i class="icon16 icomoon-icon-checkmark"></i> Create Zone
                     </button>
                 </div>
@@ -2231,7 +2233,7 @@ if ($db_stat) {
                         <h4 style="margin:0; font-size:16px;">
                             <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Zones</b>
                         </h4>
-                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:1px solid #218838 !important;" title="Scan /var/named and sync missing zones and records without overwriting">
+                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:1px solid #1b5fc0 !important;" title="Scan /var/named and sync missing zones and records without overwriting">
                             <i class="icon16 icomoon-icon-loop" style="color:#ffffff !important; font-size:11px; margin-right:4px;"></i> <span style="color:#ffffff !important;">BIND Sync</span>
                         </button>
                     </div>
@@ -2317,7 +2319,7 @@ if ($db_stat) {
                         <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export SQL
                     </button>
                 </form>
-                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                     <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import SQL
                 </button>
             </div>

@@ -1363,7 +1363,7 @@ function get_all_sort_indicator($col) {
 function get_sort_url($col) {
     global $sort_by, $sort_dir, $zone_filter, $per_page;
     $next_dir = ($sort_by === $col && $sort_dir === 'asc') ? 'desc' : 'asc';
-    $url = "index.php?module=powerdns&tab=zones&sort_by=" . urlencode($col) . "&sort_dir=" . $next_dir . "&per_page=" . intval($per_page);
+    $url = "index.php?module=powerdns-manager&tab=zones&sort_by=" . urlencode($col) . "&sort_dir=" . $next_dir . "&per_page=" . intval($per_page);
     if (!empty($zone_filter)) $url .= "&zone_filter=" . urlencode($zone_filter);
     return $url;
 }
@@ -1376,7 +1376,7 @@ function get_sort_indicator($col) {
 function get_rec_sort_url($col) {
     global $selected_zone_details, $sort_rec, $sort_rec_dir, $per_page;
     $next_dir = ($sort_rec === $col && $sort_rec_dir === 'asc') ? 'desc' : 'asc';
-    $url = "index.php?module=powerdns&tab=zones&manage_zone=" . urlencode($selected_zone_details['id']) . "&sort_rec=" . urlencode($col) . "&sort_rec_dir=" . $next_dir . "&per_page=" . intval($per_page);
+    $url = "index.php?module=powerdns-manager&tab=zones&manage_zone=" . urlencode($selected_zone_details['id']) . "&sort_rec=" . urlencode($col) . "&sort_rec_dir=" . $next_dir . "&per_page=" . intval($per_page);
     if (!empty($_GET['rec_filter'])) $url .= "&rec_filter=" . urlencode($_GET['rec_filter']);
     if (!empty($_GET['rec_type_filter'])) $url .= "&rec_type_filter=" . urlencode($_GET['rec_type_filter']);
     return $url;
@@ -1713,22 +1713,22 @@ if ($db_stat) {
 ?>
 <ul class="nav nav-tabs" style="margin-bottom:20px; border-bottom:2px solid #ddd; display:flex; list-style:none; padding:0;">
     <li style="margin-right:8px;">
-        <a href="index.php?module=powerdns&tab=zones" class="pdns-tab-link <?php echo ($tab==='zones') ? 'active' : 'inactive'; ?>">
+        <a href="index.php?module=powerdns-manager&tab=zones" class="pdns-tab-link <?php echo ($tab==='zones') ? 'active' : 'inactive'; ?>">
             <i class="icon16 icomoon-icon-earth" style="<?php echo ($tab==='zones') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Zones (<?php echo count($zones); ?>)
         </a>
     </li>
     <li style="margin-right:8px;">
-        <a href="index.php?module=powerdns&tab=records" class="pdns-tab-link <?php echo ($tab==='records') ? 'active' : 'inactive'; ?>">
+        <a href="index.php?module=powerdns-manager&tab=records" class="pdns-tab-link <?php echo ($tab==='records') ? 'active' : 'inactive'; ?>">
             <i class="icon16 icomoon-icon-list" style="<?php echo ($tab==='records') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Records (<?php echo number_format($total_all_records_count); ?>)
         </a>
     </li>
     <li style="margin-right:8px;">
-        <a href="index.php?module=powerdns&tab=queries" class="pdns-tab-link <?php echo ($tab==='queries') ? 'active' : 'inactive'; ?>">
+        <a href="index.php?module=powerdns-manager&tab=queries" class="pdns-tab-link <?php echo ($tab==='queries') ? 'active' : 'inactive'; ?>">
             <i class="icon16 icomoon-icon-stats-up" style="<?php echo ($tab==='queries') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Queries
         </a>
     </li>
     <li>
-        <a href="index.php?module=powerdns&tab=config" class="pdns-tab-link <?php echo ($tab==='config') ? 'active' : 'inactive'; ?>">
+        <a href="index.php?module=powerdns-manager&tab=config" class="pdns-tab-link <?php echo ($tab==='config') ? 'active' : 'inactive'; ?>">
             <i class="icon16 icomoon-icon-cogs" style="<?php echo ($tab==='config') ? 'color:#ffffff !important;' : ''; ?>"></i> Settings
         </a>
     </li>
@@ -1800,9 +1800,9 @@ if ($db_stat) {
                                 <td><a href="http://<?php echo htmlspecialchars($clean_r_name); ?>" target="_blank" style="font-weight:normal; color:#007bff; text-decoration:none;"><?php echo htmlspecialchars($clean_r_name); ?></a></td>
                                 <td>
                                     <?php if (empty($r['disabled'])): ?>
-                                        <a href="index.php?module=powerdns&tab=records&toggle_rec_id=<?php echo intval($r['id']); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($r['type']); ?></a>
+                                        <a href="index.php?module=powerdns-manager&tab=records&toggle_rec_id=<?php echo intval($r['id']); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($r['type']); ?></a>
                                     <?php else: ?>
-                                        <a href="index.php?module=powerdns&tab=records&toggle_rec_id=<?php echo intval($r['id']); ?>" class="badge" style="background:#dc3545; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Disabled record (Click to activate)"><?php echo htmlspecialchars($r['type']); ?></a>
+                                        <a href="index.php?module=powerdns-manager&tab=records&toggle_rec_id=<?php echo intval($r['id']); ?>" class="badge" style="background:#dc3545; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Disabled record (Click to activate)"><?php echo htmlspecialchars($r['type']); ?></a>
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($r['ttl']); ?></td>
@@ -1816,8 +1816,8 @@ if ($db_stat) {
                                 </td>
                                 <td>
                                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
-                                        <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($r['zone_name'] . '.'); ?>&edit_id=<?php echo intval($r['id']); ?>&edit_name=<?php echo urlencode($r['name']); ?>&edit_type=<?php echo urlencode($r['type']); ?>&edit_content=<?php echo urlencode($r['content']); ?>" class="btn-action-edit" title="Edit in Zone"><i class="icon16 icomoon-icon-pencil"></i></a>
-                                        <a href="index.php?module=powerdns&tab=records&all_del_id=<?php echo intval($r['id']); ?>" onclick="return confirm('Delete this record?');" class="btn-action-delete" title="Delete Record"><i class="icon16 icomoon-icon-remove"></i></a>
+                                        <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($r['zone_name'] . '.'); ?>&edit_id=<?php echo intval($r['id']); ?>&edit_name=<?php echo urlencode($r['name']); ?>&edit_type=<?php echo urlencode($r['type']); ?>&edit_content=<?php echo urlencode($r['content']); ?>" class="btn-action-edit" title="Edit in Zone"><i class="icon16 icomoon-icon-pencil"></i></a>
+                                        <a href="index.php?module=powerdns-manager&tab=records&all_del_id=<?php echo intval($r['id']); ?>" onclick="return confirm('Delete this record?');" class="btn-action-delete" title="Delete Record"><i class="icon16 icomoon-icon-remove"></i></a>
                                     </div>
                                 </td>
                             </tr>
@@ -1829,7 +1829,7 @@ if ($db_stat) {
                 </table>
             </form>
             <?php
-            $all_page_url_base = "index.php?module=powerdns&tab=records&all_sort=" . urlencode($all_rec_sort) . "&all_order=" . urlencode($all_rec_order) . "&per_page=" . intval($per_page) . (!empty($all_rec_filter) ? "&all_rec_filter=" . urlencode($all_rec_filter) : "") . (!empty($all_type_filter) ? "&all_type_filter=" . urlencode($all_type_filter) : "") . "&p_all=";
+            $all_page_url_base = "index.php?module=powerdns-manager&tab=records&all_sort=" . urlencode($all_rec_sort) . "&all_order=" . urlencode($all_rec_order) . "&per_page=" . intval($per_page) . (!empty($all_rec_filter) ? "&all_rec_filter=" . urlencode($all_rec_filter) : "") . (!empty($all_type_filter) ? "&all_type_filter=" . urlencode($all_type_filter) : "") . "&p_all=";
             echo render_table_footer(count($all_db_records), $all_rec_total, $all_rec_page, $all_rec_pages, 'records', $all_page_url_base, $per_page, $allowed_per_page);
             ?>
         </div>
@@ -1954,7 +1954,7 @@ if ($db_stat) {
                                 </td>
                                 <td style="color:#555; font-size:12px;"><?php echo htmlspecialchars($q_item['time']); ?></td>
                                 <td style="text-align:center;">
-                                    <a href="index.php?module=powerdns&tab=queries&del_query_id=<?php echo $q_item['id']; ?>&per_page=<?php echo intval($per_page); ?>" onclick="return confirm('Delete this query log entry?');" class="btn-action-delete" title="Delete Log"><i class="icon16 icomoon-icon-remove"></i></a>
+                                    <a href="index.php?module=powerdns-manager&tab=queries&del_query_id=<?php echo $q_item['id']; ?>&per_page=<?php echo intval($per_page); ?>" onclick="return confirm('Delete this query log entry?');" class="btn-action-delete" title="Delete Log"><i class="icon16 icomoon-icon-remove"></i></a>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -1965,7 +1965,7 @@ if ($db_stat) {
                 </table>
             </form>
             <?php
-            $q_url_base = "index.php?module=powerdns&tab=queries&q_sort=" . urlencode($q_sort) . "&q_order=" . urlencode($q_order) . "&per_page=" . intval($per_page) . ($q_filter !== '' ? "&q_filter=" . urlencode($q_filter) : "") . ($q_type_filter !== '' ? "&q_type_filter=" . urlencode($q_type_filter) : "") . ($q_response_filter !== '' ? "&q_response_filter=" . urlencode($q_response_filter) : "") . "&p_queries=";
+            $q_url_base = "index.php?module=powerdns-manager&tab=queries&q_sort=" . urlencode($q_sort) . "&q_order=" . urlencode($q_order) . "&per_page=" . intval($per_page) . ($q_filter !== '' ? "&q_filter=" . urlencode($q_filter) : "") . ($q_type_filter !== '' ? "&q_type_filter=" . urlencode($q_type_filter) : "") . ($q_response_filter !== '' ? "&q_response_filter=" . urlencode($q_response_filter) : "") . "&p_queries=";
             echo render_table_footer(count($paginated_queries['items']), $paginated_queries['total_items'], $paginated_queries['page'], $paginated_queries['total_pages'], 'queries', $q_url_base, $per_page, $allowed_per_page);
             ?>
         </div>
@@ -1985,7 +1985,7 @@ if ($db_stat) {
                     </h3>
                 </div>
                 <div>
-                    <a href="index.php?module=powerdns&tab=zones" class="btn-back-zones" style="background:#ffffff !important; background-color:#ffffff !important; color:#000000 !important; border:1px solid #ced4da !important;" title="Return to DNS Zones List">
+                    <a href="index.php?module=powerdns-manager&tab=zones" class="btn-back-zones" style="background:#ffffff !important; background-color:#ffffff !important; color:#000000 !important; border:1px solid #ced4da !important;" title="Return to DNS Zones List">
                         <i class="icon16 icomoon-icon-arrow-left" style="color:#000000 !important; font-size:12px !important;"></i> <span style="color:#000000 !important; font-weight:700 !important;">Back to DNS Zones</span>
                     </a>
                 </div>
@@ -2047,7 +2047,7 @@ if ($db_stat) {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <?php if ($edit_record): ?>
-                            <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>" class="btn btn-default btn-sm" style="border:1px solid #ccc;">Cancel Editing</a>
+                            <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>" class="btn btn-default btn-sm" style="border:1px solid #ccc;">Cancel Editing</a>
                         <?php endif; ?>
                     </div>
                     <button type="submit" name="save_record" class="btn btn-primary" style="background:#007bff; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-weight:bold;">
@@ -2120,9 +2120,9 @@ if ($db_stat) {
                             <td><a href="http://<?php echo htmlspecialchars($clean_row_name); ?>" target="_blank" style="font-weight:normal; color:#007bff; text-decoration:none;"><?php echo htmlspecialchars($clean_row_name); ?></a></td>
                             <td>
                                 <?php if (empty($row['disabled'])): ?>
-                                    <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&toggle_rec_id=<?php echo intval($row['id'] ?? 0); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($row['type']); ?></a>
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&toggle_rec_id=<?php echo intval($row['id'] ?? 0); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($row['type']); ?></a>
                                 <?php else: ?>
-                                    <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&toggle_rec_id=<?php echo intval($row['id'] ?? 0); ?>" class="badge" style="background:#dc3545; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Disabled record (Click to activate)"><?php echo htmlspecialchars($row['type']); ?></a>
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&toggle_rec_id=<?php echo intval($row['id'] ?? 0); ?>" class="badge" style="background:#dc3545; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Disabled record (Click to activate)"><?php echo htmlspecialchars($row['type']); ?></a>
                                 <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($row['ttl']); ?></td>
@@ -2136,8 +2136,8 @@ if ($db_stat) {
                             </td>
                             <td>
                                 <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
-                                    <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&edit_id=<?php echo intval($row['id'] ?? 0); ?>&edit_name=<?php echo urlencode($row['name']); ?>&edit_type=<?php echo urlencode($row['type']); ?>&edit_content=<?php echo urlencode($row['content']); ?>" class="btn-action-edit" title="Edit Record"><i class="icon16 icomoon-icon-pencil"></i></a>
-                                    <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&del_rec_id=<?php echo intval($row['id'] ?? 0); ?>&del_rec_zone=<?php echo urlencode($selected_zone_details['id']); ?>&del_rec_name=<?php echo urlencode($row['name']); ?>&del_rec_type=<?php echo urlencode($row['type']); ?>&del_rec_content=<?php echo urlencode($row['content']); ?>" onclick="return confirm('Delete this record?');" class="btn-action-delete" title="Delete Record"><i class="icon16 icomoon-icon-remove"></i></a>
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&edit_id=<?php echo intval($row['id'] ?? 0); ?>&edit_name=<?php echo urlencode($row['name']); ?>&edit_type=<?php echo urlencode($row['type']); ?>&edit_content=<?php echo urlencode($row['content']); ?>" class="btn-action-edit" title="Edit Record"><i class="icon16 icomoon-icon-pencil"></i></a>
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&del_rec_id=<?php echo intval($row['id'] ?? 0); ?>&del_rec_zone=<?php echo urlencode($selected_zone_details['id']); ?>&del_rec_name=<?php echo urlencode($row['name']); ?>&del_rec_type=<?php echo urlencode($row['type']); ?>&del_rec_content=<?php echo urlencode($row['content']); ?>" onclick="return confirm('Delete this record?');" class="btn-action-delete" title="Delete Record"><i class="icon16 icomoon-icon-remove"></i></a>
                                 </div>
                             </td>
                         </tr>
@@ -2149,7 +2149,7 @@ if ($db_stat) {
             </table>
             </form>
             <?php
-            $rec_page_base = "index.php?module=powerdns&tab=zones&manage_zone=" . urlencode($selected_zone_details['id']) . "&sort_rec=" . urlencode($sort_rec) . "&sort_rec_dir=" . urlencode($sort_rec_dir) . "&per_page=" . intval($per_page) . (!empty($_GET['rec_filter']) ? "&rec_filter=" . urlencode($_GET['rec_filter']) : "") . (!empty($_GET['rec_type_filter']) ? "&rec_type_filter=" . urlencode($_GET['rec_type_filter']) : "") . "&p_records=";
+            $rec_page_base = "index.php?module=powerdns-manager&tab=zones&manage_zone=" . urlencode($selected_zone_details['id']) . "&sort_rec=" . urlencode($sort_rec) . "&sort_rec_dir=" . urlencode($sort_rec_dir) . "&per_page=" . intval($per_page) . (!empty($_GET['rec_filter']) ? "&rec_filter=" . urlencode($_GET['rec_filter']) : "") . (!empty($_GET['rec_type_filter']) ? "&rec_type_filter=" . urlencode($_GET['rec_type_filter']) : "") . "&p_records=";
             echo render_table_footer(count($paginated_records['items']), $paginated_records['total_items'], $paginated_records['page'], $paginated_records['total_pages'], 'records', $rec_page_base, $per_page, $allowed_per_page);
             ?>
         </div>
@@ -2270,14 +2270,14 @@ if ($db_stat) {
                                 </td>
                                 <td style="color:#888; font-weight:bold; font-size:12px;"><?php echo !empty($z['db_id']) ? intval($z['db_id']) : '—'; ?></td>
                                 <td>
-                                    <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" style="font-weight:bold; color:#007bff; text-decoration:none;">
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" style="font-weight:bold; color:#007bff; text-decoration:none;">
                                         <?php echo htmlspecialchars(trim_dns_dot($z['name'])); ?>
                                     </a>
                                 </td>
                                 <td>
                                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
-                                        <a href="index.php?module=powerdns&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" class="btn-action-edit" title="Manage Records"><i class="icon16 icomoon-icon-pencil"></i></a>
-                                        <a href="index.php?module=powerdns&tab=zones&delete_zone=<?php echo urlencode($z['id']); ?>" onclick="return confirm('Are you sure you want to delete this zone and all its records?');" class="btn-action-delete" title="Delete Zone"><i class="icon16 icomoon-icon-remove"></i></a>
+                                        <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" class="btn-action-edit" title="Manage Records"><i class="icon16 icomoon-icon-pencil"></i></a>
+                                        <a href="index.php?module=powerdns-manager&tab=zones&delete_zone=<?php echo urlencode($z['id']); ?>" onclick="return confirm('Are you sure you want to delete this zone and all its records?');" class="btn-action-delete" title="Delete Zone"><i class="icon16 icomoon-icon-remove"></i></a>
                                     </div>
                                 </td>
                             </tr>
@@ -2289,7 +2289,7 @@ if ($db_stat) {
             </table>
             </form>
             <?php
-            $zone_page_base = "index.php?module=powerdns&tab=zones&sort_by=" . urlencode($sort_by) . "&sort_dir=" . urlencode($sort_dir) . "&per_page=" . intval($per_page) . (!empty($zone_filter) ? "&zone_filter=" . urlencode($zone_filter) : "") . "&p_zones=";
+            $zone_page_base = "index.php?module=powerdns-manager&tab=zones&sort_by=" . urlencode($sort_by) . "&sort_dir=" . urlencode($sort_dir) . "&per_page=" . intval($per_page) . (!empty($zone_filter) ? "&zone_filter=" . urlencode($zone_filter) : "") . "&p_zones=";
             echo render_table_footer(count($paginated_zones['items']), $paginated_zones['total_items'], $paginated_zones['page'], $paginated_zones['total_pages'], 'zones', $zone_page_base, $per_page, $allowed_per_page);
             ?>
         </div>

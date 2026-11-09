@@ -152,15 +152,15 @@ echo -e "\n${YELLOW}[5/8] Installing Module files into CWP...${NC}"
 mkdir -p "$CWP_DIR/modules"
 mkdir -p "$CWP_DIR/include"
 
-if [ -f "$SCRIPT_DIR/upload/admin/modules/powerdns.php" ]; then
-    cp -f "$SCRIPT_DIR/upload/admin/modules/powerdns.php" "$CWP_DIR/modules/powerdns.php"
+if [ -f "$SCRIPT_DIR/upload/admin/modules/powerdns-manager.php" ]; then
+    cp -f "$SCRIPT_DIR/upload/admin/modules/powerdns-manager.php" "$CWP_DIR/modules/powerdns-manager.php"
     cp -f "$SCRIPT_DIR/upload/admin/include/powerdns_menu.php" "$CWP_DIR/include/powerdns_menu.php"
 else
-    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/upload/admin/modules/powerdns.php -o "$CWP_DIR/modules/powerdns.php"
+    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/upload/admin/modules/powerdns-manager.php -o "$CWP_DIR/modules/powerdns-manager.php"
     curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP_Module-PowerDNS_Manager/main/upload/admin/include/powerdns_menu.php -o "$CWP_DIR/include/powerdns_menu.php"
 fi
 
-chmod 644 "$CWP_DIR/modules/powerdns.php"
+chmod 644 "$CWP_DIR/modules/powerdns-manager.php"
 chmod 644 "$CWP_DIR/include/powerdns_menu.php"
 
 # 6. Inject Menu into CWP Sidebar (3rdparty.php)
@@ -558,4 +558,4 @@ echo -e "Database Name  : ${DB_NAME}"
 echo -e "DNS Status     : PowerDNS is active on port 53 (BIND/named disabled)"
 echo -e "\nYou can now refresh your Control Web Panel (CWP) admin dashboard"
 echo -e "and access ${BLUE}PowerDNS Manager${NC} directly from the left sidebar!"
-echo -e "Direct URL: ${YELLOW}https://<your-cwp-ip>:2031/index.php?module=powerdns${NC}\n"
+echo -e "Direct URL: ${YELLOW}https://<your-cwp-ip>:2031/index.php?module=powerdns-manager${NC}\n"

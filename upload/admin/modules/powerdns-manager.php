@@ -1645,6 +1645,26 @@ ksort($supported_types);
 .btn-back-zones i, .btn-back-zones span {
     color: #000000 !important;
 }
+.pdns-tab-link {
+    padding: 10px 18px;
+    display: block;
+    text-decoration: none;
+    border-radius: 4px 4px 0 0;
+    font-weight: bold;
+}
+.pdns-tab-link.active {
+    background: #2f80ed !important;
+    color: #ffffff !important;
+}
+.pdns-tab-link.active i {
+    color: #ffffff !important;
+}
+.pdns-tab-link.inactive {
+    background: #f8f9fa !important;
+    color: #333333 !important;
+    border: 1px solid #ddd !important;
+    border-bottom: none !important;
+}
 </style>
 <div class="row" style="margin-bottom:20px;">
     <div class="col-md-12">
@@ -1696,30 +1716,28 @@ if ($db_stat) {
     $db_stat->close();
 }
 ?>
-<div class="tabs" style="margin-bottom:20px;">
-    <ul class="nav nav-tabs">
-        <li class="<?php echo ($tab==='zones') ? 'active' : ''; ?>">
-            <a href="index.php?module=powerdns-manager&tab=zones">
-                <i class="icon16 icomoon-icon-earth"></i> DNS Zones (<?php echo count($zones); ?>)
-            </a>
-        </li>
-        <li class="<?php echo ($tab==='records') ? 'active' : ''; ?>">
-            <a href="index.php?module=powerdns-manager&tab=records">
-                <i class="icon16 icomoon-icon-list"></i> DNS Records (<?php echo number_format($total_all_records_count); ?>)
-            </a>
-        </li>
-        <li class="<?php echo ($tab==='queries') ? 'active' : ''; ?>">
-            <a href="index.php?module=powerdns-manager&tab=queries">
-                <i class="icon16 icomoon-icon-stats-up"></i> DNS Queries
-            </a>
-        </li>
-        <li class="<?php echo ($tab==='config') ? 'active' : ''; ?>">
-            <a href="index.php?module=powerdns-manager&tab=config">
-                <i class="icon16 icomoon-icon-cogs"></i> Settings
-            </a>
-        </li>
-    </ul>
-</div>
+<ul class="nav nav-tabs" style="margin-bottom:20px; border-bottom:2px solid #ddd; display:flex; list-style:none; padding:0;">
+    <li style="margin-right:8px;">
+        <a href="index.php?module=powerdns-manager&tab=zones" class="pdns-tab-link <?php echo ($tab==='zones') ? 'active' : 'inactive'; ?>">
+            <i class="icon16 icomoon-icon-earth" style="<?php echo ($tab==='zones') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Zones (<?php echo count($zones); ?>)
+        </a>
+    </li>
+    <li style="margin-right:8px;">
+        <a href="index.php?module=powerdns-manager&tab=records" class="pdns-tab-link <?php echo ($tab==='records') ? 'active' : 'inactive'; ?>">
+            <i class="icon16 icomoon-icon-list" style="<?php echo ($tab==='records') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Records (<?php echo number_format($total_all_records_count); ?>)
+        </a>
+    </li>
+    <li style="margin-right:8px;">
+        <a href="index.php?module=powerdns-manager&tab=queries" class="pdns-tab-link <?php echo ($tab==='queries') ? 'active' : 'inactive'; ?>">
+            <i class="icon16 icomoon-icon-stats-up" style="<?php echo ($tab==='queries') ? 'color:#ffffff !important;' : ''; ?>"></i> DNS Queries
+        </a>
+    </li>
+    <li>
+        <a href="index.php?module=powerdns-manager&tab=config" class="pdns-tab-link <?php echo ($tab==='config') ? 'active' : 'inactive'; ?>">
+            <i class="icon16 icomoon-icon-cogs" style="<?php echo ($tab==='config') ? 'color:#ffffff !important;' : ''; ?>"></i> Settings
+        </a>
+    </li>
+</ul>
 <?php if ($tab === 'records'): ?>
 <div class="row">
     <div class="col-md-12">

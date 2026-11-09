@@ -1,16 +1,19 @@
 # PowerDNS Management Module for Control Web Panel (CWP)
 
-A native PowerDNS Authoritative Server management module designed for [Control Web Panel (CWP)](https://control-webpanel.com/).
+A high-performance, native PowerDNS Authoritative Server management module designed for [Control Web Panel (CWP)](https://control-webpanel.com/).
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **🌐 DNS Zone Management**: Create, view, edit, and delete forward and reverse zones (Native & Master).
-- **📝 Record Management**: Manage `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`, `NS`, `CAA`, `PTR`, and `SOA` records with record comments.
-- **📊 Real-time DNS Analytics**: Live monitoring and query logging with domain, type, response code, client IP, protocol, and packet size.
-- **⚙️ In-Browser Config Editor**: Direct editor for `/etc/pdns/pdns.conf` with automatic syntax backup and instant service restart.
-- **🛡️ Fallback Support**: Directly queries MySQL backend when PowerDNS service is stopped, ensuring records remain accessible.
+- **🌐 Comprehensive Zone Management**: Create, list, search, filter, and delete forward and reverse DNS zones (Native & Master).
+- **📝 Complete Record Editor**: Manage `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`, `NS`, `CAA`, `PTR`, and `SOA` records with inline comments and bulk status controls (Active / Passive / Delete).
+- **🔄 Non-Destructive BIND 9 Sync ("BIND Sync")**: One-click green action button available on both the **Zones** tab and **Settings** tab that scans `/var/named` and imports missing zones and records into PowerDNS without overwriting existing records.
+- **💾 Full SQL Database Backup & Restore**: Instant one-click SQL export and web file import of the entire PowerDNS database with optional automatic service restart.
+- **📊 Real-time DNS Analytics & Query Logging**: Integrated high-speed background daemon capturing incoming queries, domains, query types, response codes, client IPs, protocols, and packet sizes.
+- **⚙️ In-Browser Config Editor**: Full-featured editor for `/etc/pdns/pdns.conf` with automatic timestamped backups, syntax validation, and instant service restart.
+- **🛡️ High-Availability Fallback**: Direct MySQL queries when the PowerDNS daemon is stopped, ensuring records remain viewable and manageable.
+- **🎨 Standardized CWP Design**: Form submissions in CWP blue (`#2f80ed`), delete actions in grey (`#6c757d`), sync actions in green (`#28a745`), and uniform left-aligned data tables.
 
 ---
 
@@ -28,9 +31,13 @@ Access in CWP Admin Panel: 👉 **DNS Functions → PowerDNS Manager**
 
 ## 🗑️ Uninstallation
 
+Run on your CWP server as `root`:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/uninstall.sh | bash
 ```
+
+*(Automatically restores and re-enables BIND `named` service on port 53).*
 
 ---
 

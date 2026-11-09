@@ -2692,9 +2692,6 @@ if ($db_stat) {
                         <h4 style="margin:0; font-size:16px;">
                             <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Zones</b>
                         </h4>
-                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" title="Scan /var/named and sync missing zones and records without overwriting">
-                            <i class="icon16 icomoon-icon-loop" style="color:#ffffff !important; font-size:11px; margin-right:4px;"></i> <span style="color:#ffffff !important;">BIND Sync</span>
-                        </button>
                     </div>
                     <div style="display:flex; align-items:center;">
                         <div class="pdns-bulk-toolbar">
@@ -2738,7 +2735,6 @@ if ($db_stat) {
                                 <td>
                                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
                                         <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" class="btn-action-edit" title="Manage Records"><i class="icon16 icomoon-icon-pencil"></i></a>
-                                        <a href="index.php?module=powerdns-manager&tab=zones&export_single_zone=<?php echo urlencode($z['name']); ?>" class="btn-action-edit" style="background:#17a2b8 !important;" title="Export ZoneFile (.zone)"><i class="icon16 icomoon-icon-download"></i></a>
                                         <a href="index.php?module=powerdns-manager&tab=zones&delete_zone=<?php echo urlencode($z['id']); ?>" onclick="return confirm('Are you sure you want to delete this zone and all its records?');" class="btn-action-delete" title="Delete Zone"><i class="icon16 icomoon-icon-remove"></i></a>
                                     </div>
                                 </td>

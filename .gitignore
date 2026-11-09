@@ -1,0 +1,4 @@
+# .gitignore
+.Trashes
+.DS_Store
+Thumbs.db

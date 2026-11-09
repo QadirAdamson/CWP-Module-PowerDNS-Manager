@@ -1684,10 +1684,10 @@ ksort($supported_types);
             <div>
                 <form method="POST" style="margin:0; display:inline-block;">
                     <?php if ($is_active): ?>
-                        <button type="submit" name="service_action" value="restart" class="btn btn-warning" style="margin-right:6px; background:#ffc107; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-power"></i> Restart Service</button>
-                        <button type="submit" name="service_action" value="stop" class="btn btn-danger" style="background:#dc3545; color:#fff; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-cancel-circle"></i> Stop Service</button>
+                        <button type="submit" name="service_action" value="restart" class="btn btn-warning" style="margin-right:6px; background:#ffc107; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-power"></i> Restart</button>
+                        <button type="submit" name="service_action" value="stop" class="btn btn-danger" style="background:#dc3545; color:#fff; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-cancel-circle"></i> Stop</button>
                     <?php else: ?>
-                        <button type="submit" name="service_action" value="start" class="btn btn-success" style="background:#28a745; color:#fff; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-power"></i> Start Service</button>
+                        <button type="submit" name="service_action" value="start" class="btn btn-success" style="background:#28a745; color:#fff; border:none; padding:7px 15px; font-weight:bold; cursor:pointer; border-radius:4px;"><i class="icon16 icomoon-icon-power"></i> Start</button>
                     <?php endif; ?>
                 </form>
             </div>

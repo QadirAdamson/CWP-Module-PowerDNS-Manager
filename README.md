@@ -38,8 +38,6 @@ Run on your CWP server as `root`:
 curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/uninstall.sh | bash
 ```
 
-*(Automatically restores and re-enables BIND `named` service on port 53).*
-
 ---
 
 ## 📄 License

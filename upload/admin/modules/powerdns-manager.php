@@ -1701,6 +1701,9 @@ ksort($supported_types);
     <?php echo $message; ?>
 </div>
 <?php endif; ?>
+<form method="POST" id="form-import-bind" style="display:none;">
+    <input type="hidden" name="import_bind_zones" value="1">
+</form>
 <?php
 // Count total records in DB for tab badge
 $total_all_records_count = 0;
@@ -2220,9 +2223,6 @@ if ($db_stat) {
         </div>
     </div>
 </div>
-<form method="POST" id="form-import-bind" style="display:none;">
-    <input type="hidden" name="import_bind_zones" value="1">
-</form>
 <div class="row" style="margin-bottom:25px;">
     <div class="col-md-12">
         <div class="pdns-card">
@@ -2233,7 +2233,7 @@ if ($db_stat) {
                         <h4 style="margin:0; font-size:16px;">
                             <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Zones</b>
                         </h4>
-                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:1px solid #1b5fc0 !important;" title="Scan /var/named and sync missing zones and records without overwriting">
+                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" title="Scan /var/named and sync missing zones and records without overwriting">
                             <i class="icon16 icomoon-icon-loop" style="color:#ffffff !important; font-size:11px; margin-right:4px;"></i> <span style="color:#ffffff !important;">BIND Sync</span>
                         </button>
                     </div>
@@ -2321,6 +2321,9 @@ if ($db_stat) {
                 </form>
                 <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                     <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import SQL
+                </button>
+                <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Scan /var/named and sync missing zones and records without overwriting">
+                    <i class="icon16 icomoon-icon-loop" style="color:#fff;"></i> BIND Sync
                 </button>
             </div>
 

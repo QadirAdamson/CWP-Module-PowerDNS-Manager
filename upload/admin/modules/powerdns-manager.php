@@ -25,27 +25,166 @@ if (!function_exists('parse_pdns_config')) {
 
 $pdns_cfg = parse_pdns_config($config_file);
 
-$api_key = $pdns_cfg['api-key'];
-$api_port = $pdns_cfg['webserver-port'];
-$api_address = $pdns_cfg['webserver-address'];
+$api_key = $pdns_cfg['api-key'] ?? '';
+$api_port = $pdns_cfg['webserver-port'] ?? '8053';
+$api_address = $pdns_cfg['webserver-address'] ?? '127.0.0.1';
 if ($api_address === '0.0.0.0') $api_address = '127.0.0.1';
 $api_url = "http://{$api_address}:{$api_port}/api/v1/servers/localhost";
 
-$db_host = $pdns_cfg['gmysql-host'];
-$db_user = $pdns_cfg['gmysql-user'];
-$db_pass = $pdns_cfg['gmysql-password'];
-$db_name = $pdns_cfg['gmysql-dbname'];
-$db_port = intval($pdns_cfg['gmysql-port'] ?? 3306);
+$pdns_backend = (isset($pdns_cfg['launch']) && strpos($pdns_cfg['launch'], 'gpgsql') !== false) ? 'pgsql' : 'mysql';
+
+if ($pdns_backend === 'pgsql') {
+    $db_host = $pdns_cfg['gpgsql-host'] ?? '127.0.0.1';
+    $db_user = $pdns_cfg['gpgsql-user'] ?? 'pdns_user';
+    $db_pass = $pdns_cfg['gpgsql-password'] ?? '';
+    $db_name = $pdns_cfg['gpgsql-dbname'] ?? 'powerdns';
+    $db_port = intval($pdns_cfg['gpgsql-port'] ?? 5432);
+} else {
+    $db_host = $pdns_cfg['gmysql-host'] ?? '127.0.0.1';
+    $db_user = $pdns_cfg['gmysql-user'] ?? 'pdns_user';
+    $db_pass = $pdns_cfg['gmysql-password'] ?? '';
+    $db_name = $pdns_cfg['gmysql-dbname'] ?? 'powerdns';
+    $db_port = intval($pdns_cfg['gmysql-port'] ?? 3306);
+}
+
+if (!class_exists('PdnsDbResult')) {
+    class PdnsDbResult {
+        private $rows = [];
+        private $idx = 0;
+        public $num_rows = 0;
+
+        public function __construct($rows = []) {
+            foreach ($rows as &$row) {
+                if (is_array($row)) {
+                    if (isset($row['disabled'])) {
+                        $row['disabled'] = ($row['disabled'] === true || $row['disabled'] === 't' || $row['disabled'] === 1 || $row['disabled'] === '1') ? 1 : 0;
+                    }
+                    if (isset($row['auth'])) {
+                        $row['auth'] = ($row['auth'] === true || $row['auth'] === 't' || $row['auth'] === 1 || $row['auth'] === '1') ? 1 : 0;
+                    }
+                }
+            }
+            $this->rows = $rows;
+            $this->num_rows = count($rows);
+        }
+
+        public function fetch_assoc() {
+            if ($this->idx < $this->num_rows) {
+                return $this->rows[$this->idx++];
+            }
+            return null;
+        }
+    }
+}
+
+if (!class_exists('PdnsDbWrapper')) {
+    class PdnsDbWrapper {
+        public $backend = 'mysql';
+        public $mysqli = null;
+        public $pdo = null;
+        public $insert_id = 0;
+        public $affected_rows = 0;
+
+        public function __construct($backend, $host, $user, $pass, $name, $port) {
+            $this->backend = $backend;
+            if ($backend === 'pgsql') {
+                try {
+                    $dsn = "pgsql:host={$host};port=" . ($port ?: 5432) . ";dbname={$name}";
+                    $this->pdo = new PDO($dsn, $user, $pass, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_SILENT,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+                    ]);
+                } catch (Exception $e) {
+                    $this->pdo = null;
+                }
+            } else {
+                $this->mysqli = @new mysqli($host, $user, $pass, $name, $port ?: 3306);
+                if ($this->mysqli->connect_errno) {
+                    $this->mysqli = null;
+                } else {
+                    $this->mysqli->set_charset("utf8");
+                }
+            }
+        }
+
+        public function is_connected() {
+            return ($this->backend === 'pgsql') ? ($this->pdo !== null) : ($this->mysqli !== null);
+        }
+
+        public function real_escape_string($str) {
+            if ($str === null) return '';
+            if ($this->backend === 'pgsql') {
+                if ($this->pdo) {
+                    $q = $this->pdo->quote($str);
+                    if (strlen($q) >= 2 && $q[0] === "'" && substr($q, -1) === "'") {
+                        return substr($q, 1, -1);
+                    }
+                }
+                return addslashes($str);
+            } else {
+                return $this->mysqli ? $this->mysqli->real_escape_string($str) : addslashes($str);
+            }
+        }
+
+        public function query($sql) {
+            if ($this->backend === 'pgsql') {
+                if (!$this->pdo) return false;
+                if (preg_match('/UPDATE\s+records\s+r\s+JOIN\s+domains\s+d\s+ON\s+r\.domain_id\s*=\s*d\.id\s+SET\s+r\.content\s*=\s*\'([^\']*)\'\s+WHERE\s+d\.name\s*=\s*\'([^\']*)\'\s+AND\s+r\.type\s*=\s*\'SOA\'/i', $sql, $m)) {
+                    $sql = "UPDATE records SET content = " . $this->pdo->quote($m[1]) . " WHERE domain_id IN (SELECT id FROM domains WHERE name = " . $this->pdo->quote($m[2]) . ") AND type = 'SOA'";
+                }
+                if (preg_match('/^\s*INSERT\s+INTO\s+([a-zA-Z0-9_]+)/i', $sql, $im)) {
+                    if (stripos($sql, 'RETURNING') === false) {
+                        $sql_run = rtrim($sql, "; \t\n\r") . " RETURNING id";
+                        $stmt = $this->pdo->query($sql_run);
+                        if ($stmt) {
+                            $row = $stmt->fetch();
+                            $this->insert_id = intval($row['id'] ?? 0);
+                            $this->affected_rows = 1;
+                            return true;
+                        }
+                    }
+                }
+                $stmt = $this->pdo->query($sql);
+                if ($stmt === false) {
+                    $this->affected_rows = 0;
+                    return false;
+                }
+                $this->affected_rows = $stmt->rowCount();
+                if (preg_match('/^\s*(SELECT|SHOW|EXPLAIN)\s/i', $sql)) {
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    return new PdnsDbResult($rows);
+                }
+                return true;
+            } else {
+                if (!$this->mysqli) return false;
+                $res = $this->mysqli->query($sql);
+                $this->insert_id = $this->mysqli->insert_id;
+                $this->affected_rows = $this->mysqli->affected_rows;
+                return $res;
+            }
+        }
+
+        public function close() {
+            if ($this->backend === 'pgsql') {
+                $this->pdo = null;
+            } else {
+                if ($this->mysqli) {
+                    @$this->mysqli->close();
+                    $this->mysqli = null;
+                }
+            }
+        }
+    }
+}
 
 if (!function_exists('get_pdns_db')) {
     function get_pdns_db() {
-        global $db_host, $db_user, $db_pass, $db_name, $db_port;
-        $mysqli = new mysqli($db_host, $db_user, $db_pass, $db_name, $db_port ?: 3306);
-        if ($mysqli->connect_errno) {
+        global $pdns_backend, $db_host, $db_user, $db_pass, $db_name, $db_port;
+        $db = new PdnsDbWrapper($pdns_backend, $db_host, $db_user, $db_pass, $db_name, $db_port);
+        if (!$db->is_connected()) {
             return null;
         }
-        $mysqli->set_charset("utf8");
-        return $mysqli;
+        return $db;
     }
 }
 $default_hostname = trim(gethostname() ?: 'test.incomel.net');
@@ -301,21 +440,39 @@ if (isset($_POST['save_config'])) {
 // Handle Full PowerDNS Database SQL Export
 $exported_sql_data = null;
 if (isset($_POST['export_db_sql'])) {
-    $dump_cmd = "mysqldump -h " . escapeshellarg($db_host ?: '127.0.0.1') .
-                " -P " . intval($db_port ?: 3306) .
-                " -u " . escapeshellarg($db_user) .
-                " -p" . escapeshellarg($db_pass) .
-                " --add-drop-table --single-transaction " .
-                escapeshellarg($db_name) . " 2>&1";
-    $dump_output = shell_exec($dump_cmd);
-    if (!empty($dump_output) && strpos($dump_output, 'mysqldump: Got error') === false && strpos($dump_output, 'Access denied') === false) {
-        $exported_sql_data = [
-            'filename' => 'powerdns_full_backup_' . date('Ymd_His') . '.sql',
-            'content'  => base64_encode($dump_output)
-        ];
+    if ($pdns_backend === 'pgsql') {
+        $dump_cmd = "PGPASSWORD=" . escapeshellarg($db_pass) . " pg_dump -h " . escapeshellarg($db_host ?: '127.0.0.1') .
+                    " -p " . intval($db_port ?: 5432) .
+                    " -U " . escapeshellarg($db_user) .
+                    " --clean --if-exists " .
+                    escapeshellarg($db_name) . " 2>&1";
+        $dump_output = shell_exec($dump_cmd);
+        if (!empty($dump_output) && strpos($dump_output, 'pg_dump: error') === false && strpos($dump_output, 'FATAL') === false) {
+            $exported_sql_data = [
+                'filename' => 'powerdns_pg_backup_' . date('Ymd_His') . '.sql',
+                'content'  => base64_encode($dump_output)
+            ];
+        } else {
+            $msg_type = 'danger';
+            $message = "Failed to export PostgreSQL database: " . htmlspecialchars($dump_output ?: 'Unknown error');
+        }
     } else {
-        $msg_type = 'danger';
-        $message = "Failed to export DNS database SQL: " . htmlspecialchars($dump_output ?: 'Unknown error');
+        $dump_cmd = "mysqldump -h " . escapeshellarg($db_host ?: '127.0.0.1') .
+                    " -P " . intval($db_port ?: 3306) .
+                    " -u " . escapeshellarg($db_user) .
+                    " -p" . escapeshellarg($db_pass) .
+                    " --add-drop-table --single-transaction " .
+                    escapeshellarg($db_name) . " 2>&1";
+        $dump_output = shell_exec($dump_cmd);
+        if (!empty($dump_output) && strpos($dump_output, 'mysqldump: Got error') === false && strpos($dump_output, 'Access denied') === false) {
+            $exported_sql_data = [
+                'filename' => 'powerdns_full_backup_' . date('Ymd_His') . '.sql',
+                'content'  => base64_encode($dump_output)
+            ];
+        } else {
+            $msg_type = 'danger';
+            $message = "Failed to export DNS database SQL: " . htmlspecialchars($dump_output ?: 'Unknown error');
+        }
     }
 }
 
@@ -323,25 +480,47 @@ if (isset($_POST['export_db_sql'])) {
 if (isset($_POST['import_db_sql'])) {
     $sql_file = $_FILES['sql_file'] ?? null;
     if ($sql_file && $sql_file['error'] === UPLOAD_ERR_OK && is_uploaded_file($sql_file['tmp_name'])) {
-        $import_cmd = "mysql -h " . escapeshellarg($db_host ?: '127.0.0.1') .
-                      " -P " . intval($db_port ?: 3306) .
-                      " -u " . escapeshellarg($db_user) .
-                      " -p" . escapeshellarg($db_pass) .
-                      " " . escapeshellarg($db_name) .
-                      " < " . escapeshellarg($sql_file['tmp_name']) . " 2>&1";
-        $import_output = trim(shell_exec($import_cmd) ?? '');
-        if (empty($import_output) || strpos($import_output, 'ERROR') === false) {
-            $message = "DNS database SQL file (<b>" . htmlspecialchars($sql_file['name']) . "</b>) imported successfully.";
-            if (isset($_POST['restart_after_import'])) {
-                shell_exec('systemctl restart pdns 2>&1');
-                usleep(400000);
-                if (trim(shell_exec('systemctl is-active pdns 2>/dev/null')) === 'active') {
-                    $message .= " PowerDNS service has been restarted.";
+        if ($pdns_backend === 'pgsql') {
+            $import_cmd = "PGPASSWORD=" . escapeshellarg($db_pass) . " psql -h " . escapeshellarg($db_host ?: '127.0.0.1') .
+                          " -p " . intval($db_port ?: 5432) .
+                          " -U " . escapeshellarg($db_user) .
+                          " -d " . escapeshellarg($db_name) .
+                          " < " . escapeshellarg($sql_file['tmp_name']) . " 2>&1";
+            $import_output = trim(shell_exec($import_cmd) ?? '');
+            if (empty($import_output) || (strpos($import_output, 'ERROR:') === false && strpos($import_output, 'FATAL:') === false)) {
+                $message = "DNS PostgreSQL backup file (<b>" . htmlspecialchars($sql_file['name']) . "</b>) imported successfully.";
+                if (isset($_POST['restart_after_import'])) {
+                    shell_exec('systemctl restart pdns 2>&1');
+                    usleep(400000);
+                    if (trim(shell_exec('systemctl is-active pdns 2>/dev/null')) === 'active') {
+                        $message .= " PowerDNS service has been restarted.";
+                    }
                 }
+            } else {
+                $msg_type = 'danger';
+                $message = "Failed to import PostgreSQL database SQL: " . htmlspecialchars($import_output);
             }
         } else {
-            $msg_type = 'danger';
-            $message = "Failed to import DNS database SQL: " . htmlspecialchars($import_output);
+            $import_cmd = "mysql -h " . escapeshellarg($db_host ?: '127.0.0.1') .
+                          " -P " . intval($db_port ?: 3306) .
+                          " -u " . escapeshellarg($db_user) .
+                          " -p" . escapeshellarg($db_pass) .
+                          " " . escapeshellarg($db_name) .
+                          " < " . escapeshellarg($sql_file['tmp_name']) . " 2>&1";
+            $import_output = trim(shell_exec($import_cmd) ?? '');
+            if (empty($import_output) || strpos($import_output, 'ERROR') === false) {
+                $message = "DNS database SQL file (<b>" . htmlspecialchars($sql_file['name']) . "</b>) imported successfully.";
+                if (isset($_POST['restart_after_import'])) {
+                    shell_exec('systemctl restart pdns 2>&1');
+                    usleep(400000);
+                    if (trim(shell_exec('systemctl is-active pdns 2>/dev/null')) === 'active') {
+                        $message .= " PowerDNS service has been restarted.";
+                    }
+                }
+            } else {
+                $msg_type = 'danger';
+                $message = "Failed to import DNS database SQL: " . htmlspecialchars($import_output);
+            }
         }
     } else {
         $msg_type = 'danger';
@@ -658,13 +837,14 @@ if (isset($_POST['bulk_records_action']) && !empty($_POST['selected_records']) &
 
         if ($action === 'delete' || $action === 'active' || $action === 'passive') {
             $new_dis = ($action === 'passive') ? 1 : 0;
+            $new_dis_sql = ($pdns_backend === 'pgsql') ? ($new_dis ? 'TRUE' : 'FALSE') : $new_dis;
             $affected_count = 0;
 
             if (!empty($ids)) {
                 $id_list = implode(',', $ids);
                 $sql = ($action === 'delete')
                     ? "DELETE FROM records WHERE id IN ({$id_list})"
-                    : "UPDATE records SET disabled = {$new_dis} WHERE id IN ({$id_list})";
+                    : "UPDATE records SET disabled = {$new_dis_sql} WHERE id IN ({$id_list})";
                 $db->query($sql);
                 if ($db->affected_rows > 0) {
                     $affected_count += $db->affected_rows;
@@ -679,7 +859,7 @@ if (isset($_POST['bulk_records_action']) && !empty($_POST['selected_records']) &
                 $cond = "(name = '{$t_name}' OR name = '{$t_name}.') AND type = '{$t_type}' AND (content = '{$t_cnt_raw}' OR content = '{$t_cnt_clean}' OR content = '\"{$t_cnt_raw}\"')";
                 $sql = ($action === 'delete')
                     ? "DELETE FROM records WHERE {$cond}"
-                    : "UPDATE records SET disabled = {$new_dis} WHERE {$cond}";
+                    : "UPDATE records SET disabled = {$new_dis_sql} WHERE {$cond}";
                 $db->query($sql);
                 if ($db->affected_rows > 0) {
                     $affected_count += $db->affected_rows;
@@ -707,7 +887,8 @@ if (isset($_GET['toggle_rec_id']) && $is_active) {
         $q_cur = $db->query("SELECT disabled FROM records WHERE id = {$t_id} LIMIT 1");
         if ($q_cur && $row = $q_cur->fetch_assoc()) {
             $new_dis = $row['disabled'] ? 0 : 1;
-            $db->query("UPDATE records SET disabled = {$new_dis} WHERE id = {$t_id}");
+            $new_dis_sql = ($pdns_backend === 'pgsql') ? ($new_dis ? 'TRUE' : 'FALSE') : $new_dis;
+            $db->query("UPDATE records SET disabled = {$new_dis_sql} WHERE id = {$t_id}");
             $status_str = $new_dis ? 'Disabled (Inactive)' : 'Active';
             $message = "Record status updated to <b>{$status_str}</b>.";
             shell_exec("pdns_control purge >/dev/null 2>&1");
@@ -796,6 +977,9 @@ if (isset($_POST['import_bind_zones']) && $is_active) {
                 }
             }
 
+            $dis_val = ($pdns_backend === 'pgsql') ? 'FALSE' : '0';
+            $auth_val = ($pdns_backend === 'pgsql') ? 'TRUE' : '1';
+
             // 3. Process SOA: insert if missing, or update if placeholder/incomplete
             if (!empty($parsed['soa'])) {
                 $soa_name_esc = $db->real_escape_string(rtrim($parsed['soa']['name'], '.'));
@@ -810,7 +994,7 @@ if (isset($_POST['import_bind_zones']) && $is_active) {
                     }
                 } else {
                     $db->query("INSERT INTO records (domain_id, name, type, content, ttl, prio, disabled, auth)
-                                VALUES ({$domain_id}, '{$soa_name_esc}', 'SOA', '{$soa_cnt_esc}', {$soa_ttl}, NULL, 0, 1)");
+                                VALUES ({$domain_id}, '{$soa_name_esc}', 'SOA', '{$soa_cnt_esc}', {$soa_ttl}, NULL, {$dis_val}, {$auth_val})");
                     $added_records_count++;
                 }
             }
@@ -829,7 +1013,7 @@ if (isset($_POST['import_bind_zones']) && $is_active) {
                 $r_cnt_esc = $db->real_escape_string($r['content']);
 
                 $db->query("INSERT INTO records (domain_id, name, type, content, ttl, prio, disabled, auth)
-                            VALUES ({$domain_id}, '{$r_name_esc}', '{$r_type_esc}', '{$r_cnt_esc}', {$r_ttl}, NULL, 0, 1)");
+                            VALUES ({$domain_id}, '{$r_name_esc}', '{$r_type_esc}', '{$r_cnt_esc}', {$r_ttl}, NULL, {$dis_val}, {$auth_val})");
                 if ($db->affected_rows > 0) {
                     $added_records_count++;
                     $existing_set[$check_key] = true;
@@ -854,9 +1038,10 @@ if (isset($_POST['bulk_all_records_action']) && !empty($_POST['selected_rec_ids'
         if (!empty($ids) && ($action === 'delete' || $action === 'active' || $action === 'passive')) {
             $id_list = implode(',', $ids);
             $new_dis = ($action === 'passive') ? 1 : 0;
+            $new_dis_sql = ($pdns_backend === 'pgsql') ? ($new_dis ? 'TRUE' : 'FALSE') : $new_dis;
             $sql = ($action === 'delete')
                 ? "DELETE FROM records WHERE id IN ({$id_list})"
-                : "UPDATE records SET disabled = {$new_dis} WHERE id IN ({$id_list})";
+                : "UPDATE records SET disabled = {$new_dis_sql} WHERE id IN ({$id_list})";
             $db->query($sql);
             $affected_num = $db->affected_rows;
             shell_exec("pdns_control rectify-all-zones >/dev/null 2>&1");
@@ -1674,14 +1859,17 @@ ksort($supported_types);
                     <i class="icon16 icomoon-icon-lightning" style="color:#2f80ed; margin-right:6px;"></i> PowerDNS
                 </h3>
                 <?php if ($is_active): ?>
-                    <span class="badge" style="background:#28a745; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
+                    <span class="badge" style="background:#28a745; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center; margin-right:8px;">
                         <i class="icon16 icomoon-icon-checkmark-circle" style="color:#ffffff; margin-right:5px;"></i> Service Running
                     </span>
                 <?php else: ?>
-                    <span class="badge" style="background:#dc3545; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
+                    <span class="badge" style="background:#dc3545; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center; margin-right:8px;">
                         <i class="icon16 icomoon-icon-cancel-circle" style="color:#ffffff; margin-right:5px;"></i> Service Stopped
                     </span>
                 <?php endif; ?>
+                <span class="badge" style="background:#0066cc; color:#ffffff; font-size:12px; font-weight:bold; padding:5px 12px; border-radius:4px; display:inline-flex; align-items:center;">
+                    <i class="icon16 icomoon-icon-database" style="color:#ffffff; margin-right:5px;"></i> <?php echo ($pdns_backend === 'pgsql') ? 'PostgreSQL' : 'MariaDB / MySQL'; ?>
+                </span>
             </div>
             <div>
                 <form method="POST" style="margin:0; display:inline-block;">

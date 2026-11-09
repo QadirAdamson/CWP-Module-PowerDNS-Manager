@@ -47,62 +47,174 @@ else
     echo -e "${GREEN}[OK] BIND service is not running or already disabled.${NC}"
 fi
 
-# 2. Install EPEL and PowerDNS with MySQL Backend
-echo -e "\n${YELLOW}[2/8] Installing PowerDNS and MySQL backend packages...${NC}"
-if command -v dnf >/dev/null 2>&1; then
-    dnf -y install epel-release || true
-    dnf -y install pdns pdns-backend-mysql
-elif command -v yum >/dev/null 2>&1; then
-    yum -y install epel-release || true
-    yum -y install pdns pdns-backend-mysql
+# Detect if PostgreSQL is installed on the system
+HAS_POSTGRES=false
+if command -v psql >/dev/null 2>&1 || [ -f /etc/cwp_active_pg_version ] || systemctl list-unit-files 2>/dev/null | grep -q "postgresql" || rpm -qa 2>/dev/null | grep -qi "postgresql[0-9]*-server"; then
+    HAS_POSTGRES=true
+fi
+
+PDNS_BACKEND="mysql"
+if [ "$HAS_POSTGRES" = true ]; then
+    DEFAULT_CHOICE="1"
+    DEFAULT_LABEL="MariaDB / MySQL"
+    if [ -f /etc/pdns/pdns.conf ] && grep -E '^[[:space:]]*launch=' /etc/pdns/pdns.conf | grep -q "gpgsql"; then
+        DEFAULT_CHOICE="2"
+        DEFAULT_LABEL="PostgreSQL"
+    fi
+
+    echo -e "\n${YELLOW}PostgreSQL detected on this system.${NC}"
+    echo -e "Select database backend for PowerDNS:"
+    echo -e "  [1] MariaDB / MySQL"
+    echo -e "  [2] PostgreSQL"
+    echo -e ""
+    DB_CHOICE=""
+    if [ -t 0 ] || [ -e /dev/tty ]; then
+        if read -t 10 -p "Select database backend [1-2] (Default: ${DEFAULT_CHOICE} -> ${DEFAULT_LABEL} in 10s): " DB_CHOICE < /dev/tty; then
+            echo ""
+        else
+            echo -e "\n${BLUE}Timeout reached. Selecting default (${DEFAULT_CHOICE} -> ${DEFAULT_LABEL}).${NC}"
+            DB_CHOICE="${DEFAULT_CHOICE}"
+        fi
+    else
+        DB_CHOICE="${DEFAULT_CHOICE}"
+    fi
+
+    case "$DB_CHOICE" in
+        2)
+            PDNS_BACKEND="pgsql"
+            ;;
+        1)
+            PDNS_BACKEND="mysql"
+            ;;
+        *)
+            if [ "$DEFAULT_CHOICE" = "2" ]; then
+                PDNS_BACKEND="pgsql"
+            else
+                PDNS_BACKEND="mysql"
+            fi
+            ;;
+    esac
+fi
+
+# 2. Install EPEL and PowerDNS with chosen Backend
+if [ "$PDNS_BACKEND" = "pgsql" ]; then
+    echo -e "\n${YELLOW}[2/8] Installing PowerDNS and PostgreSQL backend packages...${NC}"
+    if command -v dnf >/dev/null 2>&1; then
+        dnf -y install epel-release || true
+        dnf -y install pdns pdns-backend-postgresql python3-psycopg2 || dnf -y install pdns pdns-backend-postgresql || true
+    elif command -v yum >/dev/null 2>&1; then
+        yum -y install epel-release || true
+        yum -y install pdns pdns-backend-postgresql python3-psycopg2 || yum -y install pdns pdns-backend-postgresql || true
+    else
+        echo -e "${RED}[ERROR] Neither dnf nor yum package manager found.${NC}"
+        exit 1
+    fi
+
+    # Ensure CWP internal PHP has pgsql extension
+    if ! /usr/local/cwp/php71/bin/php -m 2>/dev/null | grep -qi pgsql; then
+        echo -e "${BLUE}Building pgsql extension for CWP internal PHP...${NC}"
+        dnf install -y libpq5-devel 2>/dev/null || dnf install -y libpq-devel 2>/dev/null || true
+        if [ -f /usr/local/cwpsrv/htdocs/resources/scripts/cwpphp_ext ]; then
+            sh /usr/local/cwpsrv/htdocs/resources/scripts/cwpphp_ext pgsql || true
+            systemctl restart cwp-phpfpm || true
+        fi
+    fi
 else
-    echo -e "${RED}[ERROR] Neither dnf nor yum package manager found.${NC}"
-    exit 1
+    echo -e "\n${YELLOW}[2/8] Installing PowerDNS and MySQL backend packages...${NC}"
+    if command -v dnf >/dev/null 2>&1; then
+        dnf -y install epel-release || true
+        dnf -y install pdns pdns-backend-mysql
+    elif command -v yum >/dev/null 2>&1; then
+        yum -y install epel-release || true
+        yum -y install pdns pdns-backend-mysql
+    else
+        echo -e "${RED}[ERROR] Neither dnf nor yum package manager found.${NC}"
+        exit 1
+    fi
 fi
 
 # 3. Database Setup (Preserves Existing Credentials on Re-install)
-echo -e "\n${YELLOW}[3/8] Configuring PowerDNS database in MariaDB/MySQL...${NC}"
-
 DB_NAME="powerdns"
 DB_USER="pdns_user"
-
-# Check if /etc/pdns/pdns.conf already exists (re-install scenario)
-EXISTING_PASS=""
-EXISTING_API=""
-if [ -f /etc/pdns/pdns.conf ]; then
-    EXISTING_PASS=$(grep -E '^[[:space:]]*gmysql-password=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
-    EXISTING_API=$(grep -E '^[[:space:]]*api-key=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
-fi
-
-if [ -n "$EXISTING_PASS" ]; then
-    echo -e "${BLUE}Existing PowerDNS database configuration found. Preserving credentials...${NC}"
-    DB_PASS="$EXISTING_PASS"
-else
-    DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
-fi
-
-if [ -n "$EXISTING_API" ]; then
-    API_KEY="$EXISTING_API"
-else
-    API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
-fi
-
-# Execute idempotent MySQL commands (creates db/user if missing, updates password & grants cleanly)
-mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8 COLLATE utf8_general_ci;"
-for HOST in '127.0.0.1' 'localhost'; do
-    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'${HOST}' IDENTIFIED BY '${DB_PASS}';"
-    mysql -e "ALTER USER '${DB_USER}'@'${HOST}' IDENTIFIED BY '${DB_PASS}';"
-    mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'${HOST}';"
-done
-mysql -e "FLUSH PRIVILEGES;"
-
-# Import schema (Tables use IF NOT EXISTS with inline indexes to prevent duplicate index errors)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "$SCRIPT_DIR/sql/schema.mysql.sql" ]; then
-    mysql "$DB_NAME" < "$SCRIPT_DIR/sql/schema.mysql.sql"
+
+if [ "$PDNS_BACKEND" = "pgsql" ]; then
+    echo -e "\n${YELLOW}[3/8] Configuring PowerDNS database in PostgreSQL...${NC}"
+
+    EXISTING_PASS=""
+    EXISTING_API=""
+    if [ -f /etc/pdns/pdns.conf ]; then
+        EXISTING_PASS=$(grep -E '^[[:space:]]*gpgsql-password=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
+        EXISTING_API=$(grep -E '^[[:space:]]*api-key=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
+    fi
+
+    if [ -n "$EXISTING_PASS" ]; then
+        echo -e "${BLUE}Existing PowerDNS PostgreSQL database configuration found. Preserving credentials...${NC}"
+        DB_PASS="$EXISTING_PASS"
+    else
+        DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    fi
+
+    if [ -n "$EXISTING_API" ]; then
+        API_KEY="$EXISTING_API"
+    else
+        API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+    fi
+
+    # Ensure PostgreSQL user and database exist
+    su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'\"" 2>/dev/null | grep -q 1 || \
+    su - postgres -c "psql -c \"CREATE USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS}';\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"ALTER USER ${DB_USER} WITH ENCRYPTED PASSWORD '${DB_PASS}';\"" 2>/dev/null || true
+
+    su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'\"" 2>/dev/null | grep -q 1 || \
+    su - postgres -c "psql -c \"CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};\"" 2>/dev/null || true
+
+    # Import schema.pgsql.sql
+    if [ -f "$SCRIPT_DIR/sql/schema.pgsql.sql" ]; then
+        su - postgres -c "psql -d ${DB_NAME} -f '$SCRIPT_DIR/sql/schema.pgsql.sql'" >/dev/null 2>&1 || true
+    else
+        curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.pgsql.sql | su - postgres -c "psql -d ${DB_NAME}" >/dev/null 2>&1 || true
+    fi
+    su - postgres -c "psql -d ${DB_NAME} -c \"GRANT ALL ON SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};\"" >/dev/null 2>&1 || true
+    echo -e "${GREEN}[OK] PostgreSQL database and schema configured successfully.${NC}"
 else
-    # Download schema directly if standalone curl-to-bash run
-    curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
+    echo -e "\n${YELLOW}[3/8] Configuring PowerDNS database in MariaDB/MySQL...${NC}"
+
+    EXISTING_PASS=""
+    EXISTING_API=""
+    if [ -f /etc/pdns/pdns.conf ]; then
+        EXISTING_PASS=$(grep -E '^[[:space:]]*gmysql-password=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
+        EXISTING_API=$(grep -E '^[[:space:]]*api-key=' /etc/pdns/pdns.conf | head -n 1 | cut -d'=' -f2- | tr -d ' "\r\n')
+    fi
+
+    if [ -n "$EXISTING_PASS" ]; then
+        echo -e "${BLUE}Existing PowerDNS database configuration found. Preserving credentials...${NC}"
+        DB_PASS="$EXISTING_PASS"
+    else
+        DB_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    fi
+
+    if [ -n "$EXISTING_API" ]; then
+        API_KEY="$EXISTING_API"
+    else
+        API_KEY=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+    fi
+
+    mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8 COLLATE utf8_general_ci;"
+    for HOST in '127.0.0.1' 'localhost'; do
+        mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'${HOST}' IDENTIFIED BY '${DB_PASS}';"
+        mysql -e "ALTER USER '${DB_USER}'@'${HOST}' IDENTIFIED BY '${DB_PASS}';"
+        mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'${HOST}';"
+    done
+    mysql -e "FLUSH PRIVILEGES;"
+
+    if [ -f "$SCRIPT_DIR/sql/schema.mysql.sql" ]; then
+        mysql "$DB_NAME" < "$SCRIPT_DIR/sql/schema.mysql.sql"
+    else
+        curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
+    fi
+    echo -e "${GREEN}[OK] MariaDB/MySQL database and schema configured successfully.${NC}"
 fi
 
 # 4. Configure /etc/pdns/pdns.conf
@@ -113,8 +225,40 @@ if [ -f /etc/pdns/pdns.conf ] && [ ! -f /etc/pdns/pdns.conf.orig ]; then
     cp /etc/pdns/pdns.conf /etc/pdns/pdns.conf.orig
 fi
 
+if [ "$PDNS_BACKEND" = "pgsql" ]; then
 cat <<EOF > /etc/pdns/pdns.conf
-# PowerDNS Configuration for Control Web Panel (CWP)
+# PowerDNS Configuration for Control Web Panel (CWP) - PostgreSQL Backend
+setuid=pdns
+setgid=pdns
+
+launch=gpgsql
+gpgsql-host=127.0.0.1
+gpgsql-port=5432
+gpgsql-user=${DB_USER}
+gpgsql-password=${DB_PASS}
+gpgsql-dbname=${DB_NAME}
+gpgsql-dnssec=yes
+
+# Webserver & REST API
+webserver=yes
+webserver-address=127.0.0.1
+webserver-port=8053
+webserver-allow-from=127.0.0.1,::1
+api=yes
+api-key=${API_KEY}
+
+# DNS Settings & Real-time Analytics
+local-port=53
+default-ttl=300
+query-cache-ttl=30
+cache-ttl=30
+log-dns-details=no
+log-dns-queries=no
+loglevel=2
+EOF
+else
+cat <<EOF > /etc/pdns/pdns.conf
+# PowerDNS Configuration for Control Web Panel (CWP) - MySQL Backend
 setuid=pdns
 setgid=pdns
 
@@ -143,6 +287,7 @@ log-dns-details=no
 log-dns-queries=no
 loglevel=2
 EOF
+fi
 
 chmod 600 /etc/pdns/pdns.conf
 chown pdns:pdns /etc/pdns/pdns.conf || true
@@ -181,7 +326,7 @@ else
     echo -e "${GREEN}[OK] Created 3rdparty.php with menu injection${NC}"
 fi
 
-# 7. Setup Background Query Logger (Batch Writes to MySQL)
+# 7. Setup Background Query Logger (Batch Writes to Database)
 echo -e "\n${YELLOW}[7/8] Configuring background DNS query logger service...${NC}"
 cat <<'PYEOF' > /usr/local/bin/pdns-query-logger.py
 #!/usr/bin/env python3
@@ -247,35 +392,72 @@ signal.signal(signal.SIGINT, sig_handler)
 signal.signal(signal.SIGTERM, sig_handler)
 
 cfg = parse_config()
-db_host = cfg.get("gmysql-host", "127.0.0.1")
-db_user = cfg.get("gmysql-user", "pdns_user")
-db_pass = cfg.get("gmysql-password", "")
-db_name = cfg.get("gmysql-dbname", "powerdns")
-db_port = int(cfg.get("gmysql-port", 3306))
+is_pgsql = ("gpgsql" in cfg.get("launch", "")) or ("gpgsql-dbname" in cfg)
 
-try:
-    import pymysql
-    def get_db():
-        return pymysql.connect(host=db_host, user=db_user, password=db_pass, database=db_name, port=db_port, autocommit=True)
-except ImportError:
-    import subprocess
-    def insert_batch_cli(batch):
-        if not batch: return
-        vals = []
-        for r in batch:
-            c = r["client"].replace("'", "")
-            d = r["domain"].replace("'", "")
-            t = r["type"].replace("'", "")
-            rc = r["rcode"].replace("'", "")
-            pr = r["proto"].replace("'", "")
-            sz = int(r["size"])
-            flg = r["flags"].replace("'", "")
-            tm = r["time"]
-            vals.append(f"('{c}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
-        sql = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
-        cmd = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-e", sql]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    get_db = None
+if is_pgsql:
+    db_host = cfg.get("gpgsql-host", "127.0.0.1")
+    db_user = cfg.get("gpgsql-user", "pdns_user")
+    db_pass = cfg.get("gpgsql-password", "")
+    db_name = cfg.get("gpgsql-dbname", "powerdns")
+    db_port = int(cfg.get("gpgsql-port", 5432))
+
+    try:
+        import psycopg2
+        def get_db():
+            conn = psycopg2.connect(host=db_host, user=db_user, password=db_pass, dbname=db_name, port=db_port)
+            conn.autocommit = True
+            return conn
+    except ImportError:
+        import subprocess
+        def insert_batch_cli(batch):
+            if not batch: return
+            vals = []
+            for r in batch:
+                c = r["client"].replace("'", "")
+                d = r["domain"].replace("'", "")
+                t = r["type"].replace("'", "")
+                rc = r["rcode"].replace("'", "")
+                pr = r["proto"].replace("'", "")
+                sz = int(r["size"])
+                flg = r["flags"].replace("'", "")
+                tm = r["time"]
+                vals.append(f"('{c}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
+            sql = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+            env = os.environ.copy()
+            env["PGPASSWORD"] = db_pass
+            cmd = ["psql", "-h", db_host, "-p", str(db_port), "-U", db_user, "-d", db_name, "-c", sql]
+            subprocess.run(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        get_db = None
+else:
+    db_host = cfg.get("gmysql-host", "127.0.0.1")
+    db_user = cfg.get("gmysql-user", "pdns_user")
+    db_pass = cfg.get("gmysql-password", "")
+    db_name = cfg.get("gmysql-dbname", "powerdns")
+    db_port = int(cfg.get("gmysql-port", 3306))
+
+    try:
+        import pymysql
+        def get_db():
+            return pymysql.connect(host=db_host, user=db_user, password=db_pass, database=db_name, port=db_port, autocommit=True)
+    except ImportError:
+        import subprocess
+        def insert_batch_cli(batch):
+            if not batch: return
+            vals = []
+            for r in batch:
+                c = r["client"].replace("'", "")
+                d = r["domain"].replace("'", "")
+                t = r["type"].replace("'", "")
+                rc = r["rcode"].replace("'", "")
+                pr = r["proto"].replace("'", "")
+                sz = int(r["size"])
+                flg = r["flags"].replace("'", "")
+                tm = r["time"]
+                vals.append(f"('{c}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
+            sql = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+            cmd = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-e", sql]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        get_db = None
 
 try:
     sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(0x0800))
@@ -301,11 +483,12 @@ def refresh_zones_cache(c=None):
         return
     try:
         new_cache = {}
+        dis_cond = "disabled = false" if is_pgsql else "disabled = 0"
         if c:
             with c.cursor() as cur:
                 cur.execute("SELECT id, name FROM domains")
                 doms = cur.fetchall()
-                cur.execute("SELECT domain_id, name, type FROM records WHERE disabled = 0")
+                cur.execute(f"SELECT domain_id, name, type FROM records WHERE {dis_cond}")
                 recs = cur.fetchall()
                 for d in doms:
                     d_id, d_name = d[0], d[1].lower().rstrip('.')
@@ -318,26 +501,46 @@ def refresh_zones_cache(c=None):
                             z_val['names'].add(r_name)
                             break
         else:
-            # Fallback to MySQL CLI query
-            cmd_d = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-N", "-e", "SELECT id, name FROM domains;"]
-            res_d = subprocess.run(cmd_d, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-            for line in res_d.stdout.splitlines():
-                parts = line.strip().split("\t")
-                if len(parts) >= 2:
-                    d_id, d_name = int(parts[0]), parts[1].lower().rstrip('.')
-                    new_cache[d_name] = {'id': d_id, 'records': set(), 'names': set()}
-            
-            cmd_r = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-N", "-e", "SELECT domain_id, name, type FROM records WHERE disabled = 0;"]
-            res_r = subprocess.run(cmd_r, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-            for line in res_r.stdout.splitlines():
-                parts = line.strip().split("\t")
-                if len(parts) >= 3:
-                    r_did, r_name, r_type = int(parts[0]), parts[1].lower().rstrip('.'), parts[2].upper()
-                    for z_name, z_val in new_cache.items():
-                        if z_val['id'] == r_did:
-                            z_val['records'].add((r_name, r_type))
-                            z_val['names'].add(r_name)
-                            break
+            if is_pgsql:
+                env = os.environ.copy()
+                env["PGPASSWORD"] = db_pass
+                cmd_d = ["psql", "-h", db_host, "-p", str(db_port), "-U", db_user, "-d", db_name, "-t", "-A", "-F", "\t", "-c", "SELECT id, name FROM domains;"]
+                res_d = subprocess.run(cmd_d, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                for line in res_d.stdout.splitlines():
+                    parts = line.strip().split("\t")
+                    if len(parts) >= 2:
+                        d_id, d_name = int(parts[0]), parts[1].lower().rstrip('.')
+                        new_cache[d_name] = {'id': d_id, 'records': set(), 'names': set()}
+                cmd_r = ["psql", "-h", db_host, "-p", str(db_port), "-U", db_user, "-d", db_name, "-t", "-A", "-F", "\t", "-c", f"SELECT domain_id, name, type FROM records WHERE {dis_cond};"]
+                res_r = subprocess.run(cmd_r, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                for line in res_r.stdout.splitlines():
+                    parts = line.strip().split("\t")
+                    if len(parts) >= 3:
+                        r_did, r_name, r_type = int(parts[0]), parts[1].lower().rstrip('.'), parts[2].upper()
+                        for z_name, z_val in new_cache.items():
+                            if z_val['id'] == r_did:
+                                z_val['records'].add((r_name, r_type))
+                                z_val['names'].add(r_name)
+                                break
+            else:
+                cmd_d = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-N", "-e", "SELECT id, name FROM domains;"]
+                res_d = subprocess.run(cmd_d, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                for line in res_d.stdout.splitlines():
+                    parts = line.strip().split("\t")
+                    if len(parts) >= 2:
+                        d_id, d_name = int(parts[0]), parts[1].lower().rstrip('.')
+                        new_cache[d_name] = {'id': d_id, 'records': set(), 'names': set()}
+                cmd_r = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-N", "-e", f"SELECT domain_id, name, type FROM records WHERE {dis_cond};"]
+                res_r = subprocess.run(cmd_r, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                for line in res_r.stdout.splitlines():
+                    parts = line.strip().split("\t")
+                    if len(parts) >= 3:
+                        r_did, r_name, r_type = int(parts[0]), parts[1].lower().rstrip('.'), parts[2].upper()
+                        for z_name, z_val in new_cache.items():
+                            if z_val['id'] == r_did:
+                                z_val['records'].add((r_name, r_type))
+                                z_val['names'].add(r_name)
+                                break
         if new_cache:
             zones_cache = new_cache
             last_cache_update = now
@@ -527,8 +730,8 @@ chmod 755 /usr/local/bin/pdns-query-logger.py
 
 cat <<'UNITEOF' > /etc/systemd/system/pdns-query-logger.service
 [Unit]
-Description=PowerDNS Batch Query Logger to MySQL
-After=network.target pdns.service mysql.service mariadb.service
+Description=PowerDNS Batch Query Logger
+After=network.target pdns.service mysql.service mariadb.service postgresql.service
 
 [Service]
 Type=simple
@@ -551,11 +754,12 @@ systemctl restart pdns-query-logger
 echo -e "\n${GREEN}======================================================${NC}"
 echo -e "${GREEN}  PowerDNS Management Module Installed Successfully! ${NC}"
 echo -e "${GREEN}======================================================${NC}"
-echo -e "API Port       : 8053"
-echo -e "API Key        : ${API_KEY}"
-echo -e "Database User  : ${DB_USER}"
-echo -e "Database Name  : ${DB_NAME}"
-echo -e "DNS Status     : PowerDNS is active on port 53 (BIND/named disabled)"
+echo -e "Database Backend : ${PDNS_BACKEND}"
+echo -e "Database User    : ${DB_USER}"
+echo -e "Database Name    : ${DB_NAME}"
+echo -e "API Port         : 8053"
+echo -e "API Key          : ${API_KEY}"
+echo -e "DNS Status       : PowerDNS is active on port 53 (BIND/named disabled)"
 echo -e "\nYou can now refresh your Control Web Panel (CWP) admin dashboard"
 echo -e "and access ${BLUE}PowerDNS Manager${NC} directly from the left sidebar!"
 echo -e "Direct URL: ${YELLOW}https://<your-cwp-ip>:2031/index.php?module=powerdns-manager${NC}\n"

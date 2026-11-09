@@ -1315,7 +1315,7 @@ $paginated_records = paginate_array($flat_records, 'p_records', $per_page);
 
 function render_sort_indicator($active_col, $active_dir, $col) {
     if ($active_col === $col) {
-        return ($active_dir === 'asc') ? ' <span style="color:#007bff; font-weight:bold;">▲</span>' : ' <span style="color:#007bff; font-weight:bold;">▼</span>';
+        return ($active_dir === 'asc') ? ' <span style="color:#2f80ed; font-weight:bold;">▲</span>' : ' <span style="color:#2f80ed; font-weight:bold;">▼</span>';
     }
     return ' <span style="color:#aaa; font-size:11px;">⇅</span>';
 }
@@ -1412,7 +1412,7 @@ function render_table_footer($shown_count, $total_items, $current_page, $total_p
             for ($p = $start_p; $p <= $end_p; $p++):
             ?>
                 <li style="margin-right:4px;">
-                    <a href="<?php echo $page_url_base . $p; ?>" class="btn btn-xs" style="padding:3px 7px; border:1px solid #ccc; text-decoration:none; <?php echo ($p === $current_page) ? 'background:#007bff; color:#fff; border-color:#007bff; font-weight:bold;' : 'color:#333;'; ?>"><?php echo $p; ?></a>
+                    <a href="<?php echo $page_url_base . $p; ?>" class="btn btn-xs" style="padding:3px 7px; border:1px solid #ccc; text-decoration:none; <?php echo ($p === $current_page) ? 'background:#2f80ed; color:#fff; border-color:#2f80ed; font-weight:bold;' : 'color:#333;'; ?>"><?php echo $p; ?></a>
                 </li>
             <?php endfor; ?>
             <?php if ($current_page < $total_pages): ?>
@@ -1493,7 +1493,7 @@ ksort($supported_types);
     justify-content: center;
     width: 28px;
     height: 28px;
-    background: #007bff !important;
+    background: #2f80ed !important;
     color: #ffffff !important;
     border: none;
     border-radius: 4px;
@@ -1501,7 +1501,7 @@ ksort($supported_types);
     transition: background 0.15s ease;
 }
 .btn-action-edit:hover {
-    background: #0056b3 !important;
+    background: #1b5fc0 !important;
     color: #ffffff !important;
 }
 .btn-action-edit i, .btn-action-edit span {
@@ -1651,7 +1651,7 @@ ksort($supported_types);
     font-weight: bold;
 }
 .pdns-tab-link.active {
-    background: #007bff !important;
+    background: #2f80ed !important;
     color: #ffffff !important;
 }
 .pdns-tab-link.active i {
@@ -1743,7 +1743,7 @@ if ($db_stat) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center;">
                         <h4 style="margin:0; font-size:16px;">
-                            <i class="icon16 icomoon-icon-list" style="color:#007bff; margin-right:5px;"></i> <b>All DNS Records</b>
+                            <i class="icon16 icomoon-icon-list" style="color:#2f80ed; margin-right:5px;"></i> <b>All DNS Records</b>
                         </h4>
                     </div>
                     <div style="display:flex; align-items:center;">
@@ -1797,7 +1797,7 @@ if ($db_stat) {
                                     <input type="checkbox" name="selected_rec_ids[]" value="<?php echo intval($r['id']); ?>" class="rec-checkbox">
                                 </td>
                                 <td style="color:#888; font-weight:bold; font-size:12px;"><?php echo intval($r['id']); ?></td>
-                                <td><a href="http://<?php echo htmlspecialchars($clean_r_name); ?>" target="_blank" style="font-weight:normal; color:#007bff; text-decoration:none;"><?php echo htmlspecialchars($clean_r_name); ?></a></td>
+                                <td><a href="http://<?php echo htmlspecialchars($clean_r_name); ?>" target="_blank" style="font-weight:normal; color:#2f80ed; text-decoration:none;"><?php echo htmlspecialchars($clean_r_name); ?></a></td>
                                 <td>
                                     <?php if (empty($r['disabled'])): ?>
                                         <a href="index.php?module=powerdns-manager&tab=records&toggle_rec_id=<?php echo intval($r['id']); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($r['type']); ?></a>
@@ -1854,7 +1854,7 @@ if ($db_stat) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center;">
                         <h4 style="margin:0; font-size:16px;">
-                            <i class="icon16 icomoon-icon-stats-up" style="color:#007bff; margin-right:5px;"></i>
+                            <i class="icon16 icomoon-icon-stats-up" style="color:#2f80ed; margin-right:5px;"></i>
                             <b>DNS Queries</b>
                         </h4>
                     </div>
@@ -1917,10 +1917,10 @@ if ($db_stat) {
                                 </td>
                                 <td><code><?php echo htmlspecialchars($q_item['client']); ?></code></td>
                                 <td>
-                                    <a href="http://<?php echo htmlspecialchars($q_item['domain']); ?>" target="_blank" style="font-weight:normal; color:#007bff; text-decoration:none;"><?php echo htmlspecialchars($q_item['domain']); ?></a>
+                                    <a href="http://<?php echo htmlspecialchars($q_item['domain']); ?>" target="_blank" style="font-weight:normal; color:#2f80ed; text-decoration:none;"><?php echo htmlspecialchars($q_item['domain']); ?></a>
                                 </td>
                                 <td>
-                                    <span class="badge" style="background:#007bff; color:#fff; padding:3px 7px; border-radius:3px; font-weight:bold;"><?php echo htmlspecialchars($q_item['type']); ?></span>
+                                    <span class="badge" style="background:#2f80ed; color:#fff; padding:3px 7px; border-radius:3px; font-weight:bold;"><?php echo htmlspecialchars($q_item['type']); ?></span>
                                 </td>
                                 <td>
                                     <?php
@@ -1979,9 +1979,9 @@ if ($db_stat) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid #e9ecef; flex-wrap:wrap; gap:12px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <h3 style="margin:0; font-size:18px; line-height:1.3; display:inline-flex; align-items:center; flex-wrap:wrap; gap:6px;">
-                        <i class="icon16 icomoon-icon-earth" style="color:#007bff; font-size:18px;"></i>
+                        <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; font-size:18px;"></i>
                         <span>Managing DNS Records:</span>
-                        <span style="color:#007bff; font-weight:700;"><?php echo htmlspecialchars(trim_dns_dot($selected_zone_details['name'])); ?></span>
+                        <span style="color:#2f80ed; font-weight:700;"><?php echo htmlspecialchars(trim_dns_dot($selected_zone_details['name'])); ?></span>
                     </h3>
                 </div>
                 <div>
@@ -1996,7 +1996,7 @@ if ($db_stat) {
                     <input type="hidden" name="old_rec_name" value="<?php echo htmlspecialchars($edit_record['name']); ?>">
                     <input type="hidden" name="old_rec_type" value="<?php echo htmlspecialchars($edit_record['type']); ?>">
                     <input type="hidden" name="old_rec_content" value="<?php echo htmlspecialchars($edit_record['content']); ?>">
-                    <h5 style="margin-top:0; margin-bottom:14px; color:#007bff; font-weight:bold; display:inline-flex; align-items:center; gap:6px;">
+                    <h5 style="margin-top:0; margin-bottom:14px; color:#2f80ed; font-weight:bold; display:inline-flex; align-items:center; gap:6px;">
                         <i class="icon16 icomoon-icon-pencil"></i> <span>Edit DNS Record:</span> <code style="margin-left:4px; font-size:12px;"><?php echo htmlspecialchars(trim_dns_dot($edit_record['name'])); ?> [<?php echo htmlspecialchars($edit_record['type']); ?>]</code>
                     </h5>
                 <?php else: ?>
@@ -2050,7 +2050,7 @@ if ($db_stat) {
                             <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>" class="btn btn-default btn-sm" style="border:1px solid #ccc;">Cancel Editing</a>
                         <?php endif; ?>
                     </div>
-                    <button type="submit" name="save_record" class="btn btn-primary" style="background:#007bff; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                    <button type="submit" name="save_record" class="btn btn-primary" style="background:#2f80ed; color:#fff; border:none; padding:8px 24px; border-radius:4px; cursor:pointer; font-weight:bold;">
                         <?php echo ($edit_record)?'Update Record':'Save Record'; ?>
                     </button>
                 </div>
@@ -2062,7 +2062,7 @@ if ($db_stat) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h4 style="margin:0; font-size:16px;">
-                            <i class="icon16 icomoon-icon-list" style="color:#007bff; margin-right:5px;"></i> <b>DNS Records</b>
+                            <i class="icon16 icomoon-icon-list" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Records</b>
                         </h4>
                     </div>
                     <div style="display:flex; align-items:center;">
@@ -2117,7 +2117,7 @@ if ($db_stat) {
                                 <input type="checkbox" name="selected_records[]" value="<?php echo !empty($row['id']) ? intval($row['id']) : htmlspecialchars($row['name'] . '|||' . $row['type'] . '|||' . $row['content']); ?>" class="rec-checkbox">
                             </td>
                             <td style="color:#888; font-weight:bold; font-size:12px;"><?php echo !empty($row['id']) ? intval($row['id']) : '—'; ?></td>
-                            <td><a href="http://<?php echo htmlspecialchars($clean_row_name); ?>" target="_blank" style="font-weight:normal; color:#007bff; text-decoration:none;"><?php echo htmlspecialchars($clean_row_name); ?></a></td>
+                            <td><a href="http://<?php echo htmlspecialchars($clean_row_name); ?>" target="_blank" style="font-weight:normal; color:#2f80ed; text-decoration:none;"><?php echo htmlspecialchars($clean_row_name); ?></a></td>
                             <td>
                                 <?php if (empty($row['disabled'])): ?>
                                     <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($selected_zone_details['id']); ?>&toggle_rec_id=<?php echo intval($row['id'] ?? 0); ?>" class="badge" style="background:#28a745; color:#fff; text-decoration:none; padding:3px 7px; border-radius:3px; font-weight:bold;" title="Active record (Click to disable)"><?php echo htmlspecialchars($row['type']); ?></a>
@@ -2229,7 +2229,7 @@ if ($db_stat) {
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:12px;">
                         <h4 style="margin:0; font-size:16px;">
-                            <i class="icon16 icomoon-icon-earth" style="color:#007bff; margin-right:5px;"></i> <b>DNS Zones</b>
+                            <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Zones</b>
                         </h4>
                         <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:1px solid #218838 !important;" title="Scan /var/named and sync missing zones and records without overwriting">
                             <i class="icon16 icomoon-icon-loop" style="color:#ffffff !important; font-size:11px; margin-right:4px;"></i> <span style="color:#ffffff !important;">BIND Sync</span>
@@ -2270,7 +2270,7 @@ if ($db_stat) {
                                 </td>
                                 <td style="color:#888; font-weight:bold; font-size:12px;"><?php echo !empty($z['db_id']) ? intval($z['db_id']) : '—'; ?></td>
                                 <td>
-                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" style="font-weight:bold; color:#007bff; text-decoration:none;">
+                                    <a href="index.php?module=powerdns-manager&tab=zones&manage_zone=<?php echo urlencode($z['id']); ?>&per_page=<?php echo intval($per_page); ?>" style="font-weight:bold; color:#2f80ed; text-decoration:none;">
                                         <?php echo htmlspecialchars(trim_dns_dot($z['name'])); ?>
                                     </a>
                                 </td>
@@ -2304,7 +2304,7 @@ if ($db_stat) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
                 <div style="display:flex; align-items:center;">
                     <h4 style="margin:0; font-size:16px;">
-                        <i class="icon16 icomoon-icon-database" style="color:#007bff; margin-right:5px;"></i>
+                        <i class="icon16 icomoon-icon-database" style="color:#2f80ed; margin-right:5px;"></i>
                         <b>DNS Database Backup &amp; Restore</b>
                     </h4>
                 </div>
@@ -2313,7 +2313,7 @@ if ($db_stat) {
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <form method="POST" id="form-export-db-sql" style="margin:0;">
                     <input type="hidden" name="export_db_sql" value="1">
-                    <button type="submit" class="btn btn-primary" style="background:#007bff !important; background-color:#007bff !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <button type="submit" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 18px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                         <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export SQL
                     </button>
                 </form>
@@ -2338,7 +2338,7 @@ if ($db_stat) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <div style="display:flex; align-items:center;">
                     <h4 style="margin:0; font-size:16px;">
-                        <i class="icon16 icomoon-icon-cogs" style="color:#007bff; margin-right:5px;"></i>
+                        <i class="icon16 icomoon-icon-cogs" style="color:#2f80ed; margin-right:5px;"></i>
                         <b>PowerDNS Configuration File (<code>/etc/pdns/pdns.conf</code>)</b>
                     </h4>
                 </div>
@@ -2357,7 +2357,7 @@ if ($db_stat) {
                     <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; margin:0;">
                         <input type="checkbox" name="restart_after_save" value="1" checked> <span style="margin: 10px 0 0 -10px">Restart after changes</span>
                     </label>
-                    <button type="submit" name="save_config" class="btn btn-primary" style="background:#007bff !important; background-color:#007bff !important; color:#ffffff !important; border:none; padding:8px 22px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <button type="submit" name="save_config" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 22px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                         <i class="icon16 icomoon-icon-disk" style="color:#fff;"></i> Save Configuration
                     </button>
                 </div>

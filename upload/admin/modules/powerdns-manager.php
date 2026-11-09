@@ -2,6 +2,11 @@
 // PowerDNS Management Module for Control Web Panel (CWP)
 // Version 3 - Fully unified table styles, robust sorting, cleaned layout
 
+if (!isset($include_path)) {
+    echo "Invalid Access";
+    exit();
+}
+
 $config_file = '/etc/pdns/pdns.conf';
 
 // Dynamically parse PowerDNS configuration from /etc/pdns/pdns.conf
@@ -1401,7 +1406,7 @@ if ($tab === 'records') {
                   LEFT JOIN comments c ON (r.domain_id = c.domain_id AND r.name = c.name AND r.type = c.type)
                   WHERE {$where_sql}
                   ORDER BY {$sort_sql_col} {$all_rec_order}
-                  LIMIT {$all_rec_offset}, {$all_rec_limit}";
+                  LIMIT {$all_rec_limit} OFFSET {$all_rec_offset}";
         $res_records = $db->query($q_str);
         if ($res_records) {
             while ($row = $res_records->fetch_assoc()) {
@@ -1467,7 +1472,7 @@ if ($tab === 'queries') {
                   FROM dnsqueries 
                   WHERE {$where_sql} 
                   ORDER BY {$sort_q_sql_col} {$q_order} 
-                  LIMIT {$q_offset}, {$q_limit}";
+                  LIMIT {$q_limit} OFFSET {$q_offset}";
         $res_q = $db->query($q_str);
         if ($res_q) {
             while ($row = $res_q->fetch_assoc()) {

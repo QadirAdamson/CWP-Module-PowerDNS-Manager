@@ -4,28 +4,17 @@ A high-performance, native PowerDNS Authoritative Server management module desig
 
 ---
 
-## 📸 Screenshots
-
-### DNS Zones Management
-![PowerDNS Zones Management](docs/screenshots/powerdns_zones.png)
-
-### Universal Backup & Restore & Configuration Editor
-![PowerDNS Backup, Restore and Config](docs/screenshots/powerdns_backup_config.png)
-
----
-
 ## ✨ Key Features
 
-- **🌐 Comprehensive Zone Management**: Create, list, search, filter, and delete forward and reverse DNS zones (Native & Master).
-- **📝 Complete Record Editor**: Manage `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `SRV`, `NS`, `CAA`, `PTR`, and `SOA` records with inline comments and bulk status controls (Active / Passive / Delete).
-- **🔄 Non-Destructive BIND 9 Import ("Import from BIND")**: One-click action button on the **Settings** tab that scans `/var/named` and imports missing zones and records into PowerDNS without overwriting existing records.
-- **🗄️ Multi-Database Backend Support**: Seamless choice between **MySQL** and **PostgreSQL**. The installer auto-detects if PostgreSQL is installed on the system and presents an interactive 10-second selection prompt (defaulting to MySQL).
-- **💾 Full SQL Database Backup & Restore (`Export.SQL` / `Import.SQL`)**: Instant one-click SQL export and web file import of the entire PowerDNS database (supporting both `mysqldump` and `pg_dump`) with optional automatic service restart.
-- **📄 Universal RFC 1035 ZoneFile Export & Import (`Export.Zone` / `Import.Zone`)**: Database-agnostic DNS backup and restore. Export all zones as standard RFC 1035 `.zone` files and import them seamlessly across MySQL and PostgreSQL without any SQL syntax conflicts.
-- **📊 Real-time DNS Analytics & Query Logging**: Integrated high-speed background daemon capturing incoming queries, domains, query types, response codes, client IPs, protocols, and packet sizes into MySQL or PostgreSQL.
-- **⚙️ In-Browser Config Editor**: Full-featured editor for `/etc/pdns/pdns.conf` with automatic timestamped backups, syntax validation, and instant service restart.
-- **🛡️ High-Availability Fallback**: Direct database queries (MySQL or PostgreSQL) when the PowerDNS daemon is stopped, ensuring records remain viewable and manageable.
-- **🎨 Standardized CWP Design**: Form submissions in CWP blue (`#2f80ed`), delete actions in grey (`#6c757d`), sync actions in green (`#28a745`), and uniform left-aligned data tables.
+- **Zone Management**: Create, list, search, filter, and delete forward and reverse DNS zones.
+- **Record Editor**: Manage A, AAAA, CNAME, MX, TXT, SRV, NS, CAA, PTR, and SOA records with inline comments and bulk status controls.
+- **BIND 9 Migration**: Import missing zones and records from `/var/named` without overwriting existing data.
+- **Multi-Backend Support**: Run on either MySQL or PostgreSQL database backends.
+- **SQL Backup & Restore**: One-click full database SQL export and upload import.
+- **RFC 1035 ZoneFile Support**: Database-agnostic `.zone` export and import for seamless migrations between MySQL and PostgreSQL.
+- **Query Logging Daemon**: Real-time DNS query logging capturing client IPs, query types, response codes, and protocols.
+- **Configuration Editor**: In-browser `/etc/pdns/pdns.conf` editor with automated backups and service reload.
+- **High-Availability Fallback**: Direct database queries when the PowerDNS daemon is stopped.
 
 ---
 

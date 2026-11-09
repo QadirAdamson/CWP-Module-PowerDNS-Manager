@@ -1,20 +1,20 @@
 # PowerDNS Management Module for Control Web Panel (CWP)
 
-A high-performance, native PowerDNS Authoritative Server management module designed for [Control Web Panel (CWP)](https://control-webpanel.com/).
+A native PowerDNS management module designed for [Control Web Panel (CWP)](https://control-webpanel.com/).
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-- **Zone Management**: Create, list, search, filter, and delete forward and reverse DNS zones.
-- **Record Editor**: Manage A, AAAA, CNAME, MX, TXT, SRV, NS, CAA, PTR, and SOA records with inline comments and bulk status controls.
-- **BIND 9 Migration**: Import missing zones and records from `/var/named` without overwriting existing data.
-- **Multi-Backend Support**: Run on either MySQL or PostgreSQL database backends.
-- **SQL Backup & Restore**: One-click full database SQL export and upload import.
-- **RFC 1035 ZoneFile Support**: Database-agnostic `.zone` export and import for seamless migrations between MySQL and PostgreSQL.
-- **Query Logging Daemon**: Real-time DNS query logging capturing client IPs, query types, response codes, and protocols.
-- **Configuration Editor**: In-browser `/etc/pdns/pdns.conf` editor with automated backups and service reload.
-- **High-Availability Fallback**: Direct database queries when the PowerDNS daemon is stopped.
+- **DNS Zone Management**: Create, list, search, and delete forward and reverse DNS zones.
+- **Record Management**: Add, edit, and manage all standard DNS records with bulk controls.
+- **BIND Migration**: Easily import existing zones and records from BIND without overwriting data.
+- **Flexible Database Backends**: Supports both MySQL and PostgreSQL database backends.
+- **Database Backup & Restore**: Export and import full database backups with a single click.
+- **Universal Zone Import/Export**: Export and import standard DNS zone files to easily migrate between databases.
+- **Real-Time DNS Analytics**: Track incoming DNS queries, query types, and client statistics.
+- **Configuration Editor**: Edit the PowerDNS configuration file with automatic backups and service reload.
+- **Service Management**: Start, stop, and restart PowerDNS service directly from the panel.
 
 ---
 

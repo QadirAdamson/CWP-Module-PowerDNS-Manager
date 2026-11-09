@@ -109,8 +109,8 @@ fi
 echo -e "\n${YELLOW}[4/8] Setting up /etc/pdns/pdns.conf...${NC}"
 mkdir -p /etc/pdns
 
-if [ -f /etc/pdns/pdns.conf ]; then
-    cp /etc/pdns/pdns.conf /etc/pdns/pdns.conf.bak.$(date +%s)
+if [ -f /etc/pdns/pdns.conf ] && [ ! -f /etc/pdns/pdns.conf.orig ]; then
+    cp /etc/pdns/pdns.conf /etc/pdns/pdns.conf.orig
 fi
 
 cat <<EOF > /etc/pdns/pdns.conf

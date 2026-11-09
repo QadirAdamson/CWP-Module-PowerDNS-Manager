@@ -2773,15 +2773,9 @@ if ($db_stat) {
             </div>
 
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <!-- SQL Backup / Restore -->
-                <form method="POST" id="form-export-db-sql" style="margin:0;">
-                    <input type="hidden" name="export_db_sql" value="1">
-                    <button type="submit" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                        <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export.SQL
-                    </button>
-                </form>
-                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                    <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import.SQL
+                <!-- BIND Sync / Import -->
+                <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Scan /var/named and import missing zones and records without overwriting">
+                    <i class="icon16 icomoon-icon-loop" style="color:#fff;"></i> Import from BIND
                 </button>
 
                 <span style="color:#bbb; font-weight:bold; margin:0 4px; user-select:none;">|</span>
@@ -2799,9 +2793,15 @@ if ($db_stat) {
 
                 <span style="color:#bbb; font-weight:bold; margin:0 4px; user-select:none;">|</span>
 
-                <!-- BIND Sync / Import -->
-                <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn btn-success" style="background:#28a745 !important; background-color:#28a745 !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;" title="Scan /var/named and import missing zones and records without overwriting">
-                    <i class="icon16 icomoon-icon-loop" style="color:#fff;"></i> Import from BIND
+                <!-- SQL Backup / Restore -->
+                <form method="POST" id="form-export-db-sql" style="margin:0;">
+                    <input type="hidden" name="export_db_sql" value="1">
+                    <button type="submit" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="icon16 icomoon-icon-download" style="color:#fff;"></i> Export.SQL
+                    </button>
+                </form>
+                <button type="button" onclick="document.getElementById('import_sql_file_input').click();" class="btn btn-primary" style="background:#2f80ed !important; background-color:#2f80ed !important; color:#ffffff !important; border:none; padding:8px 16px; font-weight:bold; font-size:13px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                    <i class="icon16 icomoon-icon-upload" style="color:#fff;"></i> Import.SQL
                 </button>
             </div>
 

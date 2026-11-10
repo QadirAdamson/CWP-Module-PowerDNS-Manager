@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# CWP PowerDNS Management Module Uninstaller
+# Github: https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
 # ==============================================================================
 
 set -e

@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# CWP PowerDNS Management Module Installer
-# Compatible with CentOS 7/8/9 Stream, AlmaLinux 8/9/10, Rocky Linux & RHEL
-# Control Web Panel (CWP / CWP7)
-# Idempotent & Safe for Re-installation
+# Github: https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
 # ==============================================================================
 
 set -e

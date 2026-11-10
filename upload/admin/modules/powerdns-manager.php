@@ -1,6 +1,6 @@
 <?php
 /**
- * Github: https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
+ * https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
  */
 
 if (!isset($include_path)) {

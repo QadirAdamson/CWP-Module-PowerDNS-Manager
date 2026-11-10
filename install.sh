@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Github: https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
+# https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
 # ==============================================================================
 
 set -e

@@ -1,6 +1,7 @@
 <?php
-// PowerDNS Management Module for Control Web Panel (CWP)
-// Version 3 - Fully unified table styles, robust sorting, cleaned layout
+/**
+ * Github: https://github.com/QadirAdamson/CWP-Module-PowerDNS-Manager
+ */
 
 if (!isset($include_path)) {
     echo "Invalid Access";

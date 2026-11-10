@@ -4,6 +4,10 @@ PowerDNS management module for [Control Web Panel (CWP)](https://control-webpane
 
 ---
 
+![Screenshot](screenshot.png)
+
+---
+
 ## Features
 
 - PowerDNS installation and service management

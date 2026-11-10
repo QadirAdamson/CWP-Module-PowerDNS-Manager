@@ -2693,6 +2693,9 @@ if ($db_stat) {
                         <h4 style="margin:0; font-size:16px;">
                             <i class="icon16 icomoon-icon-earth" style="color:#2f80ed; margin-right:5px;"></i> <b>DNS Zones</b>
                         </h4>
+                        <button type="button" onclick="if(confirm('Scan /var/named and sync missing zones and records into PowerDNS?\n\nExisting records will NOT be overwritten.')){document.getElementById('form-import-bind').submit();}" class="btn-bind-sync" title="Scan /var/named and sync missing zones and records without overwriting">
+                            <i class="icon16 icomoon-icon-loop" style="color:#ffffff !important; font-size:11px; margin-right:4px;"></i> <span style="color:#ffffff !important;">BIND Sync</span>
+                        </button>
                     </div>
                     <div style="display:flex; align-items:center;">
                         <div class="pdns-bulk-toolbar">

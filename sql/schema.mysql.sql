@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS dnsqueries (
   client_ip             VARCHAR(64) NOT NULL,
   client_country        VARCHAR(64) NOT NULL DEFAULT '',
   client_city           VARCHAR(64) NOT NULL DEFAULT '',
-  client_org            VARCHAR(128) NOT NULL DEFAULT '',
+  client_org            VARCHAR(64) NOT NULL DEFAULT '',
   domain                VARCHAR(255) NOT NULL,
   type                  VARCHAR(16) NOT NULL,
   response              VARCHAR(16) NOT NULL DEFAULT 'NOERROR',

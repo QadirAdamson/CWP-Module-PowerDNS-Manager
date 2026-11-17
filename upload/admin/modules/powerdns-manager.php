@@ -1724,8 +1724,9 @@ if ($tab === 'queries') {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
                     ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
                     ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
-                    ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT '';
+                    ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT '';
                 END IF;
+                CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_country ON dnsqueries (client_country);
             END $$;");
         } else {
             $col_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_ip'");
@@ -1741,7 +1742,8 @@ if ($tab === 'queries') {
             if (!$country_chk || $country_chk->num_rows === 0) {
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_country` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ip`");
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_city` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_country`");
-                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_org` VARCHAR(128) NOT NULL DEFAULT '' AFTER `client_city`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_org` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_city`");
+                @$db->query("ALTER TABLE dnsqueries ADD INDEX `idx_client_country` (`client_country`)");
             }
         }
 

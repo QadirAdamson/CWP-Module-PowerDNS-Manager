@@ -170,8 +170,9 @@ if [ "$PDNS_BACKEND" = "pgsql" ]; then
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
             ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
             ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
-            ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT '';
+            ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT '';
         END IF;
+        CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_country ON dnsqueries (client_country);
     END \\\$\\$;\"" >/dev/null 2>&1 || true
     su - postgres -c "psql -d ${DB_NAME} -c \"GRANT ALL ON SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};\"" >/dev/null 2>&1 || true
     echo -e "${GREEN}[OK] PostgreSQL database and schema configured successfully.${NC}"
@@ -217,7 +218,7 @@ else
     PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
 
     SET @c2 = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dnsqueries' AND column_name='client_country');
-    SET @s2 = IF(@c2 = 0, 'ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_ip, ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_country, ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT \'\' AFTER client_city;', 'SELECT 1;');
+    SET @s2 = IF(@c2 = 0, 'ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_ip, ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_country, ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_city, ADD INDEX idx_client_country (client_country);', 'SELECT 1;');
     PREPARE st2 FROM @s2; EXECUTE st2; DEALLOCATE PREPARE st2;
     " >/dev/null 2>&1 || true
     echo -e "${GREEN}[OK] MySQL database and schema configured successfully.${NC}"
@@ -764,9 +765,9 @@ while running:
 
         for r in to_save:
             geo = geoip_cache.get(r["client_ip"], ("", "", ""))
-            r["client_country"] = geo[0]
-            r["client_city"] = geo[1]
-            r["client_org"] = geo[2]
+            r["client_country"] = (geo[0] or "")[:64]
+            r["client_city"] = (geo[1] or "")[:64]
+            r["client_org"] = (geo[2] or "")[:64]
 
         if conn:
             vals = [(r["client_ip"], r["client_country"], r["client_city"], r["client_org"], r["domain"], r["type"], r["rcode"], r["proto"], r["size"], r["flags"], r["time"]) for r in to_save]

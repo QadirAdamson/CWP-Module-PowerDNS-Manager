@@ -756,12 +756,15 @@ while running:
         batch = []
         last_flush = now
         
-        unknown_ips = {r["client_ip"] for r in to_save if r["client_ip"] not in geoip_cache}
-        if unknown_ips:
-            resolved = resolve_ips_geoip(unknown_ips)
-            geoip_cache.update(resolved)
-            if len(geoip_cache) > 10000:
-                geoip_cache.clear()
+        if os.path.exists(GEOIP_PHP):
+            unknown_ips = {r["client_ip"] for r in to_save if r["client_ip"] not in geoip_cache}
+            if unknown_ips:
+                resolved = resolve_ips_geoip(unknown_ips)
+                geoip_cache.update(resolved)
+                if len(geoip_cache) > 10000:
+                    geoip_cache.clear()
+        else:
+            geoip_cache.clear()
 
         for r in to_save:
             geo = geoip_cache.get(r["client_ip"], ("", "", ""))

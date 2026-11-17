@@ -2276,7 +2276,8 @@ if ($db_stat) {
                         </div>
                     </div>
                 </div>
-                <table class="pdns-table" id="tbl-all-records">
+                <div class="table-responsive" style="overflow-x:auto; width:100%;">
+<table class="pdns-table" id="tbl-all-records">
                     <thead>
                         <tr>
                             <th style="width:40px;">
@@ -2330,6 +2331,7 @@ if ($db_stat) {
                         <?php endif; ?>
                     </tbody>
                 </table>
+</div>
             </form>
             <?php
             $all_page_url_base = "index.php?module=powerdns-manager&tab=records&all_sort=" . urlencode($all_rec_sort) . "&all_order=" . urlencode($all_rec_order) . "&per_page=" . intval($per_page) . (!empty($all_rec_filter) ? "&all_rec_filter=" . urlencode($all_rec_filter) : "") . (!empty($all_type_filter) ? "&all_type_filter=" . urlencode($all_type_filter) : "") . "&p_all=";
@@ -2396,7 +2398,8 @@ if ($db_stat) {
                         <input type="search" id="input_q_filter" value="<?php echo htmlspecialchars($q_filter); ?>" placeholder="Search queries..." onkeydown="if(event.keyCode===13){event.preventDefault(); triggerFilter('queries', 'q_filter', this.value);}" class="form-control" style="height:30px; width:220px; padding:4px 10px; font-size:12px; border-radius:4px; border:1px solid #ced4da;">
                     </div>
                 </div>
-                <table class="pdns-table" id="tbl-dns-queries">
+                <div class="table-responsive" style="overflow-x:auto; width:100%;">
+<table class="pdns-table" id="tbl-dns-queries">
                     <thead>
                         <tr>
                             <th style="width:40px;">
@@ -2487,6 +2490,7 @@ if ($db_stat) {
                         <?php endif; ?>
                     </tbody>
                 </table>
+</div>
             </form>
             <?php
             $q_url_base = "index.php?module=powerdns-manager&tab=queries&q_sort=" . urlencode($q_sort) . "&q_order=" . urlencode($q_order) . "&per_page=" . intval($per_page) . ($q_filter !== '' ? "&q_filter=" . urlencode($q_filter) : "") . ($q_type_filter !== '' ? "&q_type_filter=" . urlencode($q_type_filter) : "") . ($q_response_filter !== '' ? "&q_response_filter=" . urlencode($q_response_filter) : "") . "&p_queries=";
@@ -2616,7 +2620,8 @@ if ($db_stat) {
                         </div>
                     </div>
                 </div>
-            <table class="pdns-table" id="tbl-records">
+            <div class="table-responsive" style="overflow-x:auto; width:100%;">
+<table class="pdns-table" id="tbl-records">
                 <thead>
                     <tr>
                         <th style="width:40px;">
@@ -2671,6 +2676,7 @@ if ($db_stat) {
                     <?php endif; ?>
                 </tbody>
             </table>
+</div>
             </form>
             <?php
             $rec_page_base = "index.php?module=powerdns-manager&tab=zones&manage_zone=" . urlencode($selected_zone_details['id']) . "&sort_rec=" . urlencode($sort_rec) . "&sort_rec_dir=" . urlencode($sort_rec_dir) . "&per_page=" . intval($per_page) . (!empty($_GET['rec_filter']) ? "&rec_filter=" . urlencode($_GET['rec_filter']) : "") . (!empty($_GET['rec_type_filter']) ? "&rec_type_filter=" . urlencode($_GET['rec_type_filter']) : "") . "&p_records=";
@@ -2771,7 +2777,8 @@ if ($db_stat) {
                         </div>
                     </div>
                 </div>
-            <table class="pdns-table" id="tbl-zones">
+            <div class="table-responsive" style="overflow-x:auto; width:100%;">
+<table class="pdns-table" id="tbl-zones">
                 <thead>
                     <tr>
                         <th style="width:40px;">
@@ -2808,6 +2815,7 @@ if ($db_stat) {
                     <?php endif; ?>
                 </tbody>
             </table>
+</div>
             </form>
             <?php
             $zone_page_base = "index.php?module=powerdns-manager&tab=zones&sort_by=" . urlencode($sort_by) . "&sort_dir=" . urlencode($sort_dir) . "&per_page=" . intval($per_page) . (!empty($zone_filter) ? "&zone_filter=" . urlencode($zone_filter) : "") . "&p_zones=";

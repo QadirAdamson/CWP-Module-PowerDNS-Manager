@@ -784,19 +784,6 @@ while running:
                             break
         else:
             insert_batch_cli(to_save)
-            for attempt in range(2):
-                try:
-                    with conn.cursor() as cur:
-                        cur.executemany(sql_insert, vals)
-                    break
-                except Exception:
-                    if attempt == 0:
-                        try:
-                            conn = get_db()
-                        except Exception:
-                            break
-        else:
-            insert_batch_cli(to_save)
 
 sock.close()
 if conn:

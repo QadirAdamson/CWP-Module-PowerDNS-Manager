@@ -1702,6 +1702,7 @@ $allowed_q_sorts = [
     'id'             => 'id',
     'client_ip'      => 'client_ip',
     'client'         => 'client_ip',
+    'client_ccode'   => 'client_ccode',
     'client_country' => 'client_country',
     'client_city'    => 'client_city',
     'client_org'     => 'client_org',
@@ -1726,7 +1727,10 @@ if ($tab === 'queries') {
                     ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
                     ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT '';
                 END IF;
-                CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_country ON dnsqueries (client_country);
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_ccode') THEN
+                    ALTER TABLE dnsqueries ADD COLUMN client_ccode VARCHAR(8) NOT NULL DEFAULT '';
+                END IF;
+                CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_ccode ON dnsqueries (client_ccode);
             END $$;");
         } else {
             $col_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_ip'");
@@ -1738,12 +1742,16 @@ if ($tab === 'queries') {
                     @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_ip` VARCHAR(64) NOT NULL DEFAULT ''");
                 }
             }
+            $ccode_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_ccode'");
+            if (!$ccode_chk || $ccode_chk->num_rows === 0) {
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_ccode` VARCHAR(8) NOT NULL DEFAULT '' AFTER `client_ip`");
+                @$db->query("ALTER TABLE dnsqueries ADD INDEX `idx_client_ccode` (`client_ccode`)");
+            }
             $country_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_country'");
             if (!$country_chk || $country_chk->num_rows === 0) {
-                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_country` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ip`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_country` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ccode`");
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_city` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_country`");
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_org` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_city`");
-                @$db->query("ALTER TABLE dnsqueries ADD INDEX `idx_client_country` (`client_country`)");
             }
         }
 
@@ -1758,7 +1766,7 @@ if ($tab === 'queries') {
         }
         if (!empty($q_filter)) {
             $flt = $db->real_escape_string($q_filter);
-            $where_clauses[] = "(client_ip LIKE '%{$flt}%' OR client_country LIKE '%{$flt}%' OR client_city LIKE '%{$flt}%' OR client_org LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
+            $where_clauses[] = "(client_ip LIKE '%{$flt}%' OR client_ccode LIKE '%{$flt}%' OR client_country LIKE '%{$flt}%' OR client_city LIKE '%{$flt}%' OR client_org LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
         }
         $where_sql = implode(' AND ', $where_clauses);
 
@@ -1773,7 +1781,7 @@ if ($tab === 'queries') {
         $q_limit = $per_page;
         $q_offset = ($q_page - 1) * $q_limit;
 
-        $q_str = "SELECT id, client_ip, client_country, client_city, client_org, domain, type, response, proto, size, flags, time 
+        $q_str = "SELECT id, client_ip, client_ccode, client_country, client_city, client_org, domain, type, response, proto, size, flags, time 
                   FROM dnsqueries 
                   WHERE {$where_sql} 
                   ORDER BY {$sort_q_sql_col} {$q_order} 
@@ -1784,6 +1792,7 @@ if ($tab === 'queries') {
                 $dnsqueries[] = [
                     'id'             => intval($row['id']),
                     'client_ip'      => $row['client_ip'] ?? ($row['client'] ?? ''),
+                    'client_ccode'   => $row['client_ccode'] ?? '',
                     'client_country' => $row['client_country'] ?? '',
                     'client_city'    => $row['client_city'] ?? '',
                     'client_org'     => $row['client_org'] ?? '',
@@ -2427,8 +2436,9 @@ if ($db_stat) {
                                 <td>
                                     <?php
                                     $loc_lines = [];
-                                    if (!empty($q_item['client_country'])) {
-                                        $loc_lines[] = htmlspecialchars($q_item['client_country']);
+                                    $c_str = trim(($q_item['client_ccode'] ?? '') . ' ' . ($q_item['client_country'] ?? ''));
+                                    if ($c_str !== '') {
+                                        $loc_lines[] = htmlspecialchars($c_str);
                                     }
                                     if (!empty($q_item['client_city'])) {
                                         $loc_lines[] = '<small style="color:#64748b;">' . htmlspecialchars($q_item['client_city']) . '</small>';

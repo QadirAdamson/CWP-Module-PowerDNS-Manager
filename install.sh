@@ -167,8 +167,8 @@ if [ "$PDNS_BACKEND" = "pgsql" ]; then
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client') THEN
             ALTER TABLE dnsqueries RENAME COLUMN client TO client_ip;
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
-            ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_cname') THEN
+            ALTER TABLE dnsqueries ADD COLUMN client_cname VARCHAR(64) NOT NULL DEFAULT '';
             ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
             ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT '';
         END IF;
@@ -462,7 +462,7 @@ if is_pgsql:
             for r in batch:
                 c = r["client_ip"].replace("'", "")
                 ccode = r["client_ccode"].replace("'", "")
-                cc = r["client_country"].replace("'", "")
+                cc = r["client_cname"].replace("'", "")
                 ct = r["client_city"].replace("'", "")
                 co = r["client_org"].replace("'", "")
                 d = r["domain"].replace("'", "")
@@ -473,7 +473,7 @@ if is_pgsql:
                 flg = r["flags"].replace("'", "")
                 tm = r["time"]
                 vals.append(f"('{c}', '{ccode}', '{cc}', '{ct}', '{co}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
-            sql = "INSERT INTO dnsqueries (client_ip, client_ccode, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+            sql = "INSERT INTO dnsqueries (client_ip, client_ccode, client_cname, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
             env = os.environ.copy()
             env["PGPASSWORD"] = db_pass
             cmd = ["psql", "-h", db_host, "-p", str(db_port), "-U", db_user, "-d", db_name, "-c", sql]
@@ -498,7 +498,7 @@ else:
             for r in batch:
                 c = r["client_ip"].replace("'", "")
                 ccode = r["client_ccode"].replace("'", "")
-                cc = r["client_country"].replace("'", "")
+                cc = r["client_cname"].replace("'", "")
                 ct = r["client_city"].replace("'", "")
                 co = r["client_org"].replace("'", "")
                 d = r["domain"].replace("'", "")
@@ -509,7 +509,7 @@ else:
                 flg = r["flags"].replace("'", "")
                 tm = r["time"]
                 vals.append(f"('{c}', '{ccode}', '{cc}', '{ct}', '{co}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
-            sql = "INSERT INTO dnsqueries (client_ip, client_ccode, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+            sql = "INSERT INTO dnsqueries (client_ip, client_ccode, client_cname, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
             cmd = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-e", sql]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         get_db = None
@@ -771,13 +771,13 @@ while running:
         for r in to_save:
             geo = geoip_cache.get(r["client_ip"], ("", "", "", ""))
             r["client_ccode"] = (geo[0] or "")[:8]
-            r["client_country"] = (geo[1] or "")[:64]
+            r["client_cname"] = (geo[1] or "")[:64]
             r["client_city"] = (geo[2] or "")[:64]
             r["client_org"] = (geo[3] or "")[:64]
 
         if conn:
-            vals = [(r["client_ip"], r["client_ccode"], r["client_country"], r["client_city"], r["client_org"], r["domain"], r["type"], r["rcode"], r["proto"], r["size"], r["flags"], r["time"]) for r in to_save]
-            sql_insert = "INSERT INTO dnsqueries (client_ip, client_ccode, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            vals = [(r["client_ip"], r["client_ccode"], r["client_cname"], r["client_city"], r["client_org"], r["domain"], r["type"], r["rcode"], r["proto"], r["size"], r["flags"], r["time"]) for r in to_save]
+            sql_insert = "INSERT INTO dnsqueries (client_ip, client_ccode, client_cname, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             for attempt in range(2):
                 try:
                     with conn.cursor() as cur:

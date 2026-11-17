@@ -1703,7 +1703,7 @@ $allowed_q_sorts = [
     'client_ip'      => 'client_ip',
     'client'         => 'client_ip',
     'client_ccode'   => 'client_ccode',
-    'client_country' => 'client_country',
+    'client_cname' => 'client_cname',
     'client_city'    => 'client_city',
     'client_org'     => 'client_org',
     'domain'         => 'domain',
@@ -1722,8 +1722,8 @@ if ($tab === 'queries') {
                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client') THEN
                     ALTER TABLE dnsqueries RENAME COLUMN client TO client_ip;
                 END IF;
-                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
-                    ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_cname') THEN
+                    ALTER TABLE dnsqueries ADD COLUMN client_cname VARCHAR(64) NOT NULL DEFAULT '';
                     ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
                     ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(64) NOT NULL DEFAULT '';
                 END IF;
@@ -1747,10 +1747,10 @@ if ($tab === 'queries') {
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_ccode` VARCHAR(8) NOT NULL DEFAULT '' AFTER `client_ip`");
                 @$db->query("ALTER TABLE dnsqueries ADD INDEX `idx_client_ccode` (`client_ccode`)");
             }
-            $country_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_country'");
+            $country_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_cname'");
             if (!$country_chk || $country_chk->num_rows === 0) {
-                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_country` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ccode`");
-                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_city` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_country`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_cname` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ccode`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_city` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_cname`");
                 @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_org` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_city`");
             }
         }
@@ -1766,7 +1766,7 @@ if ($tab === 'queries') {
         }
         if (!empty($q_filter)) {
             $flt = $db->real_escape_string($q_filter);
-            $where_clauses[] = "(client_ip LIKE '%{$flt}%' OR client_ccode LIKE '%{$flt}%' OR client_country LIKE '%{$flt}%' OR client_city LIKE '%{$flt}%' OR client_org LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
+            $where_clauses[] = "(client_ip LIKE '%{$flt}%' OR client_ccode LIKE '%{$flt}%' OR client_cname LIKE '%{$flt}%' OR client_city LIKE '%{$flt}%' OR client_org LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
         }
         $where_sql = implode(' AND ', $where_clauses);
 
@@ -1781,7 +1781,7 @@ if ($tab === 'queries') {
         $q_limit = $per_page;
         $q_offset = ($q_page - 1) * $q_limit;
 
-        $q_str = "SELECT id, client_ip, client_ccode, client_country, client_city, client_org, domain, type, response, proto, size, flags, time 
+        $q_str = "SELECT id, client_ip, client_ccode, client_cname, client_city, client_org, domain, type, response, proto, size, flags, time 
                   FROM dnsqueries 
                   WHERE {$where_sql} 
                   ORDER BY {$sort_q_sql_col} {$q_order} 
@@ -1793,7 +1793,7 @@ if ($tab === 'queries') {
                     'id'             => intval($row['id']),
                     'client_ip'      => $row['client_ip'] ?? ($row['client'] ?? ''),
                     'client_ccode'   => $row['client_ccode'] ?? '',
-                    'client_country' => $row['client_country'] ?? '',
+                    'client_cname' => $row['client_cname'] ?? '',
                     'client_city'    => $row['client_city'] ?? '',
                     'client_org'     => $row['client_org'] ?? '',
                     'domain'         => $row['domain'],
@@ -2415,7 +2415,7 @@ if ($db_stat) {
                                 <input type="checkbox" id="check-all-queries" onclick="toggleSelectAll(this, 'selected_query_ids[]')" title="Select All Queries on page">
                             </th>
                             <th style="width:140px;"><a href="<?php echo get_q_sort_url('client_ip'); ?>" style="color:#495057; text-decoration:none; display:flex;">Client IP <?php echo get_q_sort_indicator('client_ip'); ?></a></th>
-                            <th style="width:140px;"><a href="<?php echo get_q_sort_url('client_country'); ?>" style="color:#495057; text-decoration:none; display:flex;">Location <?php echo get_q_sort_indicator('client_country'); ?></a></th>
+                            <th style="width:140px;"><a href="<?php echo get_q_sort_url('client_cname'); ?>" style="color:#495057; text-decoration:none; display:flex;">Location <?php echo get_q_sort_indicator('client_cname'); ?></a></th>
                             <th style="width:150px;"><a href="<?php echo get_q_sort_url('client_org'); ?>" style="color:#495057; text-decoration:none; display:flex;">Organization <?php echo get_q_sort_indicator('client_org'); ?></a></th>
                             <th><a href="<?php echo get_q_sort_url('domain'); ?>" style="color:#495057; text-decoration:none; display:flex;">Domain <?php echo get_q_sort_indicator('domain'); ?></a></th>
                             <th style="width:80px;"><a href="<?php echo get_q_sort_url('type'); ?>" style="color:#495057; text-decoration:none; display:flex;">Type <?php echo get_q_sort_indicator('type'); ?></a></th>
@@ -2436,7 +2436,7 @@ if ($db_stat) {
                                 <td>
                                     <?php
                                     $loc_lines = [];
-                                    $c_str = trim(($q_item['client_ccode'] ?? '') . ' ' . ($q_item['client_country'] ?? ''));
+                                    $c_str = trim(($q_item['client_ccode'] ?? '') . ' ' . ($q_item['client_cname'] ?? ''));
                                     if ($c_str !== '') {
                                         $loc_lines[] = htmlspecialchars($c_str);
                                     }

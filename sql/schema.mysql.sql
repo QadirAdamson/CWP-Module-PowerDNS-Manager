@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS dnsqueries (
   id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   client_ip             VARCHAR(64) NOT NULL,
   client_ccode          VARCHAR(8) NOT NULL DEFAULT '',
-  client_country        VARCHAR(64) NOT NULL DEFAULT '',
+  client_cname        VARCHAR(64) NOT NULL DEFAULT '',
   client_city           VARCHAR(64) NOT NULL DEFAULT '',
   client_org            VARCHAR(64) NOT NULL DEFAULT '',
   domain                VARCHAR(255) NOT NULL,

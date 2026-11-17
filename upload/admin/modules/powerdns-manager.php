@@ -1699,19 +1699,52 @@ $q_order = strtolower($_GET['q_order'] ?? 'desc');
 if (!in_array($q_order, ['asc', 'desc'])) $q_order = 'desc';
 
 $allowed_q_sorts = [
-    'id'       => 'id',
-    'client'   => 'client',
-    'domain'   => 'domain',
-    'type'     => 'type',
-    'response' => 'response',
-    'size'     => 'size',
-    'time'     => 'time'
+    'id'             => 'id',
+    'client_ip'      => 'client_ip',
+    'client'         => 'client_ip',
+    'client_country' => 'client_country',
+    'client_city'    => 'client_city',
+    'client_org'     => 'client_org',
+    'domain'         => 'domain',
+    'type'           => 'type',
+    'response'       => 'response',
+    'size'           => 'size',
+    'time'           => 'time'
 ];
 $sort_q_sql_col = $allowed_q_sorts[$q_sort] ?? 'id';
 
 if ($tab === 'queries') {
     $db = get_pdns_db();
     if ($db) {
+        if ($db->backend === 'pgsql') {
+            @$db->query("DO $$ BEGIN
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client') THEN
+                    ALTER TABLE dnsqueries RENAME COLUMN client TO client_ip;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
+                    ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
+                    ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
+                    ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT '';
+                END IF;
+            END $$;");
+        } else {
+            $col_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_ip'");
+            if (!$col_chk || $col_chk->num_rows === 0) {
+                $has_old = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client'");
+                if ($has_old && $has_old->num_rows > 0) {
+                    @$db->query("ALTER TABLE dnsqueries CHANGE `client` `client_ip` VARCHAR(64) NOT NULL");
+                } else {
+                    @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_ip` VARCHAR(64) NOT NULL DEFAULT ''");
+                }
+            }
+            $country_chk = @$db->query("SHOW COLUMNS FROM dnsqueries LIKE 'client_country'");
+            if (!$country_chk || $country_chk->num_rows === 0) {
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_country` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_ip`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_city` VARCHAR(64) NOT NULL DEFAULT '' AFTER `client_country`");
+                @$db->query("ALTER TABLE dnsqueries ADD COLUMN `client_org` VARCHAR(128) NOT NULL DEFAULT '' AFTER `client_city`");
+            }
+        }
+
         $where_clauses = ["1=1"];
         if (!empty($q_type_filter)) {
             $t_flt = $db->real_escape_string($q_type_filter);
@@ -1723,7 +1756,7 @@ if ($tab === 'queries') {
         }
         if (!empty($q_filter)) {
             $flt = $db->real_escape_string($q_filter);
-            $where_clauses[] = "(client LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
+            $where_clauses[] = "(client_ip LIKE '%{$flt}%' OR client_country LIKE '%{$flt}%' OR client_city LIKE '%{$flt}%' OR client_org LIKE '%{$flt}%' OR domain LIKE '%{$flt}%' OR type LIKE '%{$flt}%' OR response LIKE '%{$flt}%' OR proto LIKE '%{$flt}%' OR flags LIKE '%{$flt}%' OR time LIKE '%{$flt}%')";
         }
         $where_sql = implode(' AND ', $where_clauses);
 
@@ -1738,7 +1771,7 @@ if ($tab === 'queries') {
         $q_limit = $per_page;
         $q_offset = ($q_page - 1) * $q_limit;
 
-        $q_str = "SELECT id, client, domain, type, response, proto, size, flags, time 
+        $q_str = "SELECT id, client_ip, client_country, client_city, client_org, domain, type, response, proto, size, flags, time 
                   FROM dnsqueries 
                   WHERE {$where_sql} 
                   ORDER BY {$sort_q_sql_col} {$q_order} 
@@ -1747,15 +1780,18 @@ if ($tab === 'queries') {
         if ($res_q) {
             while ($row = $res_q->fetch_assoc()) {
                 $dnsqueries[] = [
-                    'id'       => intval($row['id']),
-                    'client'   => $row['client'],
-                    'domain'   => $row['domain'],
-                    'type'     => $row['type'],
-                    'response' => $row['response'] ?? 'NOERROR',
-                    'proto'    => $row['proto'] ?? 'UDP',
-                    'size'     => intval($row['size'] ?? 0),
-                    'flags'    => $row['flags'] ?? '',
-                    'time'     => $row['time']
+                    'id'             => intval($row['id']),
+                    'client_ip'      => $row['client_ip'] ?? ($row['client'] ?? ''),
+                    'client_country' => $row['client_country'] ?? '',
+                    'client_city'    => $row['client_city'] ?? '',
+                    'client_org'     => $row['client_org'] ?? '',
+                    'domain'         => $row['domain'],
+                    'type'           => $row['type'],
+                    'response'       => $row['response'] ?? 'NOERROR',
+                    'proto'          => $row['proto'] ?? 'UDP',
+                    'size'           => intval($row['size'] ?? 0),
+                    'flags'          => $row['flags'] ?? '',
+                    'time'           => $row['time']
                 ];
             }
         }
@@ -2364,13 +2400,15 @@ if ($db_stat) {
                             <th style="width:40px;">
                                 <input type="checkbox" id="check-all-queries" onclick="toggleSelectAll(this, 'selected_query_ids[]')" title="Select All Queries on page">
                             </th>
-                            <th style="width:160px;"><a href="<?php echo get_q_sort_url('client'); ?>" style="color:#495057; text-decoration:none; display:flex;">Client <?php echo get_q_sort_indicator('client'); ?></a></th>
+                            <th style="width:140px;"><a href="<?php echo get_q_sort_url('client_ip'); ?>" style="color:#495057; text-decoration:none; display:flex;">Client IP <?php echo get_q_sort_indicator('client_ip'); ?></a></th>
+                            <th style="width:140px;"><a href="<?php echo get_q_sort_url('client_country'); ?>" style="color:#495057; text-decoration:none; display:flex;">Location <?php echo get_q_sort_indicator('client_country'); ?></a></th>
+                            <th style="width:150px;"><a href="<?php echo get_q_sort_url('client_org'); ?>" style="color:#495057; text-decoration:none; display:flex;">Organization <?php echo get_q_sort_indicator('client_org'); ?></a></th>
                             <th><a href="<?php echo get_q_sort_url('domain'); ?>" style="color:#495057; text-decoration:none; display:flex;">Domain <?php echo get_q_sort_indicator('domain'); ?></a></th>
-                            <th style="width:90px;"><a href="<?php echo get_q_sort_url('type'); ?>" style="color:#495057; text-decoration:none; display:flex;">Type <?php echo get_q_sort_indicator('type'); ?></a></th>
-                            <th style="width:110px;"><a href="<?php echo get_q_sort_url('response'); ?>" style="color:#495057; text-decoration:none; display:flex;">Response <?php echo get_q_sort_indicator('response'); ?></a></th>
-                            <th style="width:150px;"><a href="<?php echo get_q_sort_url('size'); ?>" style="color:#495057; text-decoration:none; display:flex;">Other <?php echo get_q_sort_indicator('size'); ?></a></th>
-                            <th style="width:160px;"><a href="<?php echo get_q_sort_url('time'); ?>" style="color:#495057; text-decoration:none; display:flex;">Time <?php echo get_q_sort_indicator('time'); ?></a></th>
-                            <th style="width:70px;">Action</th>
+                            <th style="width:80px;"><a href="<?php echo get_q_sort_url('type'); ?>" style="color:#495057; text-decoration:none; display:flex;">Type <?php echo get_q_sort_indicator('type'); ?></a></th>
+                            <th style="width:100px;"><a href="<?php echo get_q_sort_url('response'); ?>" style="color:#495057; text-decoration:none; display:flex;">Response <?php echo get_q_sort_indicator('response'); ?></a></th>
+                            <th style="width:115px;"><a href="<?php echo get_q_sort_url('size'); ?>" style="color:#495057; text-decoration:none; display:flex;">Other <?php echo get_q_sort_indicator('size'); ?></a></th>
+                            <th style="width:150px;"><a href="<?php echo get_q_sort_url('time'); ?>" style="color:#495057; text-decoration:none; display:flex;">Time <?php echo get_q_sort_indicator('time'); ?></a></th>
+                            <th style="width:60px;">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2380,7 +2418,26 @@ if ($db_stat) {
                                 <td>
                                     <input type="checkbox" name="selected_query_ids[]" value="<?php echo $q_item['id']; ?>" class="query-checkbox">
                                 </td>
-                                <td><code><?php echo htmlspecialchars($q_item['client']); ?></code></td>
+                                <td><code><?php echo htmlspecialchars($q_item['client_ip']); ?></code></td>
+                                <td>
+                                    <?php
+                                    $loc_lines = [];
+                                    if (!empty($q_item['client_country'])) {
+                                        $loc_lines[] = htmlspecialchars($q_item['client_country']);
+                                    }
+                                    if (!empty($q_item['client_city'])) {
+                                        $loc_lines[] = '<small style="color:#64748b;">' . htmlspecialchars($q_item['client_city']) . '</small>';
+                                    }
+                                    echo !empty($loc_lines) ? implode('<br>', $loc_lines) : '<span style="color:#aaa;">—</span>';
+                                    ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($q_item['client_org'])): ?>
+                                        <span style="color:#334155; font-size:12px;"><?php echo htmlspecialchars($q_item['client_org']); ?></span>
+                                    <?php else: ?>
+                                        <span style="color:#aaa;">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <a href="http://<?php echo htmlspecialchars($q_item['domain']); ?>" target="_blank" style="font-weight:normal; color:#2f80ed; text-decoration:none;"><?php echo htmlspecialchars($q_item['domain']); ?></a>
                                 </td>
@@ -2424,7 +2481,7 @@ if ($db_stat) {
                             </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr><td colspan="8" style="padding:15px; color:#888;">No DNS queries found.</td></tr>
+                            <tr><td colspan="10" style="padding:15px; color:#888;">No DNS queries found.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

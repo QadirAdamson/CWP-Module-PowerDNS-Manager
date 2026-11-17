@@ -162,6 +162,17 @@ if [ "$PDNS_BACKEND" = "pgsql" ]; then
     else
         curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.pgsql.sql | su - postgres -c "psql -d ${DB_NAME}" >/dev/null 2>&1 || true
     fi
+    su - postgres -c "psql -d ${DB_NAME} -c \"
+    DO \\\$\\$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client') THEN
+            ALTER TABLE dnsqueries RENAME COLUMN client TO client_ip;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='dnsqueries' AND column_name='client_country') THEN
+            ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT '';
+            ALTER TABLE dnsqueries ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT '';
+            ALTER TABLE dnsqueries ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT '';
+        END IF;
+    END \\\$\\$;\"" >/dev/null 2>&1 || true
     su - postgres -c "psql -d ${DB_NAME} -c \"GRANT ALL ON SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL TABLES IN SCHEMA public TO ${DB_USER}; GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ${DB_USER}; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${DB_USER};\"" >/dev/null 2>&1 || true
     echo -e "${GREEN}[OK] PostgreSQL database and schema configured successfully.${NC}"
 else
@@ -200,6 +211,15 @@ else
     else
         curl -fsSL https://raw.githubusercontent.com/QadirAdamson/CWP-Module-PowerDNS-Manager/main/sql/schema.mysql.sql | mysql "$DB_NAME" || true
     fi
+    mysql "$DB_NAME" -e "
+    SET @c = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dnsqueries' AND column_name='client');
+    SET @s = IF(@c > 0, 'ALTER TABLE dnsqueries CHANGE \`client\` \`client_ip\` VARCHAR(64) NOT NULL;', 'SELECT 1;');
+    PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+    SET @c2 = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='${DB_NAME}' AND table_name='dnsqueries' AND column_name='client_country');
+    SET @s2 = IF(@c2 = 0, 'ALTER TABLE dnsqueries ADD COLUMN client_country VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_ip, ADD COLUMN client_city VARCHAR(64) NOT NULL DEFAULT \'\' AFTER client_country, ADD COLUMN client_org VARCHAR(128) NOT NULL DEFAULT \'\' AFTER client_city;', 'SELECT 1;');
+    PREPARE st2 FROM @s2; EXECUTE st2; DEALLOCATE PREPARE st2;
+    " >/dev/null 2>&1 || true
     echo -e "${GREEN}[OK] MySQL database and schema configured successfully.${NC}"
 fi
 
@@ -377,6 +397,46 @@ def sig_handler(sig, frame):
 signal.signal(signal.SIGINT, sig_handler)
 signal.signal(signal.SIGTERM, sig_handler)
 
+GEOIP_PHP = "/usr/share/MaxMindGeoIP/maxmind_geoip.php"
+geoip_cache = {}
+
+def resolve_ips_geoip(ips):
+    if not ips or not os.path.exists(GEOIP_PHP):
+        return {ip: ("", "", "") for ip in ips}
+    try:
+        import subprocess, json
+        php_code = (
+            'require_once "' + GEOIP_PHP + '";\n'
+            '$ips = json_decode($argv[1], true);\n'
+            '$out = [];\n'
+            'foreach ($ips as $ip) {\n'
+            '    $g = maxmind_geoip($ip);\n'
+            '    $c = "";\n'
+            '    if ($g) {\n'
+            '        $parts = [];\n'
+            '        if (!empty($g["country_code"])) { $parts[] = $g["country_code"]; }\n'
+            '        if (!empty($g["country_name"]) && $g["country_name"] !== "Unknown") { $parts[] = $g["country_name"]; }\n'
+            '        $c = implode(" ", $parts);\n'
+            '        $out[$ip] = [$c, $g["city"] ?? "", $g["org"] ?? ""];\n'
+            '    } else {\n'
+            '        $out[$ip] = ["", "", ""];\n'
+            '    }\n'
+            '}\n'
+            'echo json_encode($out);\n'
+        )
+        res = subprocess.run(
+            ["php", "-r", php_code, json.dumps(list(ips))],
+            capture_output=True,
+            text=True,
+            timeout=3
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            data = json.loads(res.stdout)
+            return {k: tuple(v) for k, v in data.items()}
+    except Exception:
+        pass
+    return {ip: ("", "", "") for ip in ips}
+
 cfg = parse_config()
 is_pgsql = ("gpgsql" in cfg.get("launch", "")) or ("gpgsql-dbname" in cfg)
 
@@ -399,7 +459,10 @@ if is_pgsql:
             if not batch: return
             vals = []
             for r in batch:
-                c = r["client"].replace("'", "")
+                c = r["client_ip"].replace("'", "")
+                cc = r["client_country"].replace("'", "")
+                ct = r["client_city"].replace("'", "")
+                co = r["client_org"].replace("'", "")
                 d = r["domain"].replace("'", "")
                 t = r["type"].replace("'", "")
                 rc = r["rcode"].replace("'", "")
@@ -407,8 +470,8 @@ if is_pgsql:
                 sz = int(r["size"])
                 flg = r["flags"].replace("'", "")
                 tm = r["time"]
-                vals.append(f"('{c}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
-            sql = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+                vals.append(f"('{c}', '{cc}', '{ct}', '{co}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
+            sql = "INSERT INTO dnsqueries (client_ip, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
             env = os.environ.copy()
             env["PGPASSWORD"] = db_pass
             cmd = ["psql", "-h", db_host, "-p", str(db_port), "-U", db_user, "-d", db_name, "-c", sql]
@@ -431,7 +494,10 @@ else:
             if not batch: return
             vals = []
             for r in batch:
-                c = r["client"].replace("'", "")
+                c = r["client_ip"].replace("'", "")
+                cc = r["client_country"].replace("'", "")
+                ct = r["client_city"].replace("'", "")
+                co = r["client_org"].replace("'", "")
                 d = r["domain"].replace("'", "")
                 t = r["type"].replace("'", "")
                 rc = r["rcode"].replace("'", "")
@@ -439,8 +505,8 @@ else:
                 sz = int(r["size"])
                 flg = r["flags"].replace("'", "")
                 tm = r["time"]
-                vals.append(f"('{c}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
-            sql = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
+                vals.append(f"('{c}', '{cc}', '{ct}', '{co}', '{d}', '{t}', '{rc}', '{pr}', {sz}, '{flg}', '{tm}')")
+            sql = "INSERT INTO dnsqueries (client_ip, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES " + ",".join(vals) + ";"
             cmd = ["mysql", "-h", db_host, "-P", str(db_port), f"-u{db_user}", f"-p{db_pass}", db_name, "-e", sql]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         get_db = None
@@ -621,7 +687,7 @@ while running:
                     key = (src_ip, src_port, txid)
                     flags_str = "RD" if parsed["rd"] else ""
                     pending_queries[key] = {
-                        "client": src_ip,
+                        "client_ip": src_ip,
                         "domain": parsed["domain"],
                         "type": parsed["type"],
                         "proto": proto_name,
@@ -636,7 +702,7 @@ while running:
                     q = pending_queries.pop(key, None)
                     if q:
                         batch.append({
-                            "client": q["client"],
+                            "client_ip": q["client_ip"],
                             "domain": q["domain"],
                             "type": q["type"],
                             "rcode": parsed["rcode"],
@@ -649,7 +715,7 @@ while running:
                         if is_domain_in_hosted_zones(parsed["domain"]):
                             flags_str = "RD" if parsed["rd"] else ""
                             batch.append({
-                                "client": dst_ip,
+                                "client_ip": dst_ip,
                                 "domain": parsed["domain"],
                                 "type": parsed["type"],
                                 "rcode": parsed["rcode"],
@@ -674,7 +740,7 @@ while running:
             evaluated_response = eval_authoritative_response(q["domain"], q["type"])
             if evaluated_response is not None:
                 batch.append({
-                    "client": q["client"],
+                    "client_ip": q["client_ip"],
                     "domain": q["domain"],
                     "type": q["type"],
                     "rcode": evaluated_response,
@@ -689,9 +755,35 @@ while running:
         batch = []
         last_flush = now
         
+        unknown_ips = {r["client_ip"] for r in to_save if r["client_ip"] not in geoip_cache}
+        if unknown_ips:
+            resolved = resolve_ips_geoip(unknown_ips)
+            geoip_cache.update(resolved)
+            if len(geoip_cache) > 10000:
+                geoip_cache.clear()
+
+        for r in to_save:
+            geo = geoip_cache.get(r["client_ip"], ("", "", ""))
+            r["client_country"] = geo[0]
+            r["client_city"] = geo[1]
+            r["client_org"] = geo[2]
+
         if conn:
-            vals = [(r["client"], r["domain"], r["type"], r["rcode"], r["proto"], r["size"], r["flags"], r["time"]) for r in to_save]
-            sql_insert = "INSERT INTO dnsqueries (client, domain, type, response, proto, size, flags, time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            vals = [(r["client_ip"], r["client_country"], r["client_city"], r["client_org"], r["domain"], r["type"], r["rcode"], r["proto"], r["size"], r["flags"], r["time"]) for r in to_save]
+            sql_insert = "INSERT INTO dnsqueries (client_ip, client_country, client_city, client_org, domain, type, response, proto, size, flags, time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            for attempt in range(2):
+                try:
+                    with conn.cursor() as cur:
+                        cur.executemany(sql_insert, vals)
+                    break
+                except Exception:
+                    if attempt == 0:
+                        try:
+                            conn = get_db()
+                        except Exception:
+                            break
+        else:
+            insert_batch_cli(to_save)
             for attempt in range(2):
                 try:
                     with conn.cursor() as cur:

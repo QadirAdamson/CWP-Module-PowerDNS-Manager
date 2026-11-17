@@ -84,7 +84,10 @@ CREATE TABLE IF NOT EXISTS tsigkeys (
 
 CREATE TABLE IF NOT EXISTS dnsqueries (
   id                    BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  client                VARCHAR(64) NOT NULL,
+  client_ip             VARCHAR(64) NOT NULL,
+  client_country        VARCHAR(64) NOT NULL DEFAULT '',
+  client_city           VARCHAR(64) NOT NULL DEFAULT '',
+  client_org            VARCHAR(128) NOT NULL DEFAULT '',
   domain                VARCHAR(255) NOT NULL,
   type                  VARCHAR(16) NOT NULL,
   response              VARCHAR(16) NOT NULL DEFAULT 'NOERROR',
@@ -94,7 +97,8 @@ CREATE TABLE IF NOT EXISTS dnsqueries (
   time                  DATETIME NOT NULL,
   INDEX idx_time (time),
   INDEX idx_domain (domain),
-  INDEX idx_client (client),
+  INDEX idx_client_ip (client_ip),
+  INDEX idx_client_country (client_country),
   INDEX idx_type (type),
   INDEX idx_response (response)
 ) Engine=InnoDB DEFAULT CHARSET=utf8mb4;

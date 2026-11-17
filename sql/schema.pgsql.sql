@@ -87,7 +87,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS namealgoindex ON tsigkeys(name, algorithm);
 
 CREATE TABLE IF NOT EXISTS dnsqueries (
   id                    BIGSERIAL PRIMARY KEY,
-  client                VARCHAR(64) NOT NULL,
+  client_ip             VARCHAR(64) NOT NULL,
+  client_country        VARCHAR(64) NOT NULL DEFAULT '',
+  client_city           VARCHAR(64) NOT NULL DEFAULT '',
+  client_org            VARCHAR(128) NOT NULL DEFAULT '',
   domain                VARCHAR(255) NOT NULL,
   type                  VARCHAR(16) NOT NULL,
   response              VARCHAR(16) NOT NULL DEFAULT 'NOERROR',
@@ -99,6 +102,7 @@ CREATE TABLE IF NOT EXISTS dnsqueries (
 
 CREATE INDEX IF NOT EXISTS idx_dnsqueries_time ON dnsqueries (time);
 CREATE INDEX IF NOT EXISTS idx_dnsqueries_domain ON dnsqueries (domain);
-CREATE INDEX IF NOT EXISTS idx_dnsqueries_client ON dnsqueries (client);
+CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_ip ON dnsqueries (client_ip);
+CREATE INDEX IF NOT EXISTS idx_dnsqueries_client_country ON dnsqueries (client_country);
 CREATE INDEX IF NOT EXISTS idx_dnsqueries_type ON dnsqueries (type);
 CREATE INDEX IF NOT EXISTS idx_dnsqueries_response ON dnsqueries (response);
